@@ -1,0 +1,57 @@
+from django.urls import path
+from .translations import translations_view
+from .views import (
+    file_cache_view,
+    file_detail_view,
+    file_version_detail_view,
+    file_version_revert_view,
+    file_versions_view,
+    folder_create_view,
+    folder_detail_view,
+    login_view,
+    logout_view,
+    me_view,
+    oidc_callback_view,
+    oidc_link_view,
+    oidc_login_view,
+    oidc_unlink_view,
+    project_detail_view,
+    project_list_view,
+    project_tree_view,
+    register_view,
+    reorder_view,
+    scrivener_import_view,
+    ywriter_import_view,
+    text_create_view,
+    text_detail_view,
+)
+
+urlpatterns = [
+    # Internationalization
+    path("i18n/strings/", translations_view, name="translations"),
+    # Auth
+    path("auth/register/", register_view, name="register"),
+    path("auth/login/", login_view, name="login"),
+    path("auth/logout/", logout_view, name="logout"),
+    path("auth/me/", me_view, name="me"),
+    path("auth/oidc/login/", oidc_login_view, name="oidc-login"),
+    path("auth/oidc/callback/", oidc_callback_view, name="oidc-callback"),
+    path("auth/oidc/link/", oidc_link_view, name="oidc-link"),
+    path("auth/oidc/unlink/<int:identity_id>/", oidc_unlink_view, name="oidc-unlink"),
+    # Project editor
+    path("projects/", project_list_view, name="project-list"),
+    path("projects/<int:project_pk>/", project_detail_view, name="project-detail"),
+    path("projects/<int:project_pk>/tree/", project_tree_view, name="project-tree"),
+    path("projects/<int:project_pk>/folders/", folder_create_view, name="folder-create"),
+    path("projects/<int:project_pk>/folders/<int:folder_pk>/", folder_detail_view, name="folder-detail"),
+    path("projects/<int:project_pk>/folders/<int:folder_pk>/texts/", text_create_view, name="text-create"),
+    path("projects/<int:project_pk>/texts/<int:file_pk>/", text_detail_view, name="text-detail"),
+    path("projects/<int:project_pk>/reorder/", reorder_view, name="project-reorder"),
+    path("projects/import/scrivener/", scrivener_import_view, name="scrivener-import"),
+    path("projects/import/ywriter/", ywriter_import_view, name="ywriter-import"),
+    path("files/<int:file_pk>/", file_detail_view, name="file-detail"),
+    path("files/<int:file_pk>/cache/", file_cache_view, name="file-cache"),
+    path("files/<int:file_pk>/versions/", file_versions_view, name="file-versions"),
+    path("files/<int:file_pk>/versions/<int:version_pk>/", file_version_detail_view, name="file-version-detail"),
+    path("files/<int:file_pk>/versions/<int:version_pk>/revert/", file_version_revert_view, name="file-version-revert"),
+]
