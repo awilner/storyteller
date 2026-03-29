@@ -24,6 +24,10 @@ async function request(url, options = {}) {
   return data;
 }
 
+// Config
+export const fetchConfig = () =>
+  request(`${API_BASE}/config/`);
+
 // Translations
 export const fetchTranslations = () =>
   request(`${API_BASE}/i18n/strings/`);

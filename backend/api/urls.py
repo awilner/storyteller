@@ -1,6 +1,7 @@
 from django.urls import path
 from .translations import translations_view
 from .views import (
+    config_view,
     file_cache_view,
     file_detail_view,
     file_version_detail_view,
@@ -27,6 +28,8 @@ from .views import (
 )
 
 urlpatterns = [
+    # Public config
+    path("config/", config_view, name="config"),
     # Internationalization
     path("i18n/strings/", translations_view, name="translations"),
     # Auth

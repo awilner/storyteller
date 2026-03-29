@@ -1,16 +1,15 @@
 import { useState, useEffect } from "react";
-import { fetchMe, fetchProjects, createProject, deleteProject, updateProject, logout, oidcLogin, oidcUnlink } from "./api";
+import { fetchMe, fetchProjects, createProject, deleteProject, updateProject, logout, oidcLogin, oidcUnlink, fetchConfig } from "./api";
 import AuthForm from "./AuthForm";
 import EditorView from "./EditorView";
 import ImportModal from "./ImportModal";
 import OIDCCallback from "./OIDCCallback";
 
-const OIDC_ENABLED = Boolean(import.meta.env.VITE_OIDC_ENABLED);
-
 export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [oidcEnabled, setOidcEnabled] = useState(false);
 
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [projects, setProjects] = useState([]);
@@ -35,6 +34,9 @@ export default function App() {
       .then(setUser)
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
+    fetchConfig()
+      .then((cfg) => setOidcEnabled(cfg.oidc_enabled))
+      .catch(() => {});
   }, []);
 
   // Fetch projects when user is logged in
@@ -125,7 +127,7 @@ export default function App() {
 
   if (loading) return <p style={{ textAlign: "center", marginTop: "2rem" }}>Loading…</p>;
 
-  if (!user) return <AuthForm onAuth={setUser} oidcEnabled={OIDC_ENABLED} />;
+  if (!user) return <AuthForm onAuth={setUser} oidcEnabled={oidcEnabled} />;
 
   // Editor view when a project is selected
   if (selectedProjectId) {
@@ -297,7 +299,7 @@ export default function App() {
         </ul>
       )}
 
-      {OIDC_ENABLED && (
+      {oidcEnabled && (
         <div style={{ marginTop: "2rem", borderTop: "1px solid #ccc", paddingTop: "1rem" }}>
           <h3>Linked OIDC Identities</h3>
           {user.oidc_identities?.length > 0 ? (

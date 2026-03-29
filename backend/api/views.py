@@ -32,6 +32,17 @@ from .serializers import (
 )
 
 
+# ── Public config ─────────────────────────────────────────────
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def config_view(request):
+    """Expose non-secret frontend configuration."""
+    from django.conf import settings
+    return Response({
+        "oidc_enabled": bool(settings.OIDC_CLIENT_ID and settings.OIDC_DISCOVERY_URL),
+    })
+
 # ── Local auth ────────────────────────────────────────────────
 
 @api_view(["POST"])
