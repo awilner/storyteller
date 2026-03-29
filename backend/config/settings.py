@@ -10,7 +10,7 @@ SECRET_KEY = os.environ.get(
 
 DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() == "true"
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -98,15 +98,15 @@ LANGUAGES = [
     ("pt", "Português"),
 ]
 
-# CORS
-CORS_ALLOWED_ORIGINS = os.environ.get(
-    "CORS_ALLOWED_ORIGINS", "http://localhost:5173"
-).split(",")
-CORS_ALLOW_CREDENTIALS = True
+# CORS - allow all origins, we want to be able to access the API from other applications in the future.
+CORS_ALLOW_ALL_ORIGINS = True
 
 CSRF_TRUSTED_ORIGINS = os.environ.get(
     "CSRF_TRUSTED_ORIGINS", "http://localhost:5173"
 ).split(",")
+
+# Trust X-Forwarded-Proto from reverse proxies (nginx, Traefik, etc.)
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
