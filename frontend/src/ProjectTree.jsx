@@ -150,6 +150,7 @@ function IconPicker({ x, y, currentIcon, onSelect, onClose }) {
 /* ── Custom node renderer ──────────────────────────────────── */
 
 const iconStyle = { marginRight: 4, fontSize: "0.85rem", flexShrink: 0 };
+const nameStyle = { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 };
 
 function Node({ node, style, dragHandle }) {
   const data = node.data;
@@ -164,7 +165,7 @@ function Node({ node, style, dragHandle }) {
         <span style={{ width: "1em", textAlign: "center", marginRight: 4, fontSize: "0.7rem" }}>
           {node.isOpen ? "▼" : "▶"}
         </span>
-        <span style={{ textTransform: "capitalize" }}>{data.name}</span>
+        <span style={{ textTransform: "capitalize", ...nameStyle }} title={data.name}>{data.name}</span>
       </div>
     );
   }
@@ -173,18 +174,18 @@ function Node({ node, style, dragHandle }) {
     const icon = data._icon || DEFAULT_FOLDER_ICON;
     return (
       <div ref={dragHandle} data-row-index={node.rowIndex} style={{ ...style, display: "flex", alignItems: "center", cursor: "pointer", fontWeight: 600, fontSize: "0.9rem", userSelect: "none",
-        backgroundColor: node.willReceiveDrop ? "#d8e8ff" : node.isSelected ? "#e8e8ff" : "transparent", borderRadius: 4 }}
-        onClick={() => node.toggle()}>
-        <span style={{ width: "1em", textAlign: "center", marginRight: 4, fontSize: "0.7rem" }}>
+        backgroundColor: node.willReceiveDrop ? "#d8e8ff" : node.isSelected ? "#e8e8ff" : "transparent", borderRadius: 4 }}>
+        <span style={{ width: "1em", textAlign: "center", marginRight: 4, fontSize: "0.7rem", flexShrink: 0 }}
+          onClick={(e) => { e.stopPropagation(); node.toggle(); }}>
           {node.isOpen ? "▼" : "▶"}
         </span>
-        <span style={iconStyle}>{icon}</span>
+        <span style={iconStyle} onClick={() => node.activate()}>{icon}</span>
         {node.isEditing ? (
           <input autoFocus type="text" defaultValue={data.name} style={{ flex: 1, fontSize: 13, padding: "1px 4px", border: "1px solid #ccc", borderRadius: 3 }}
             onBlur={(e) => node.submit(e.currentTarget.value)}
             onKeyDown={(e) => { if (e.key === "Enter") node.submit(e.currentTarget.value); if (e.key === "Escape") node.reset(); }} />
         ) : (
-          <span>{data.name}</span>
+          <span style={nameStyle} title={data.name} onClick={() => node.activate()}>{data.name}</span>
         )}
       </div>
     );
@@ -203,7 +204,7 @@ function Node({ node, style, dragHandle }) {
           onBlur={(e) => node.submit(e.currentTarget.value)}
           onKeyDown={(e) => { if (e.key === "Enter") node.submit(e.currentTarget.value); if (e.key === "Escape") node.reset(); }} />
       ) : (
-        <span>{data.name}</span>
+        <span style={nameStyle} title={data.name}>{data.name}</span>
       )}
     </div>
   );

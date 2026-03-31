@@ -80,13 +80,13 @@ const styles = {
   },
 };
 
-export default function EditorView({ projectId }) {
+export default function EditorView({ projectId, initialFileId }) {
   const t = useI18n();
   const [tree, setTree] = useState(null);
   const [treeLoading, setTreeLoading] = useState(true);
   const [treeError, setTreeError] = useState(null);
 
-  const [activeFileId, setActiveFileId] = useState(null);
+  const [activeFileId, setActiveFileId] = useState(initialFileId || null);
   const [fileContent, setFileContent] = useState(null);
   const [fileLoading, setFileLoading] = useState(false);
   const [fileError, setFileError] = useState(null);
@@ -103,9 +103,120 @@ export default function EditorView({ projectId }) {
   const debounceTimer = useRef(null);
   const activeFileRef = useRef(null);
 
+  // ── URL sync ───────────────────────────────────────────────
+  // Keep a ref so the popstate handler always sees the latest without re-registering.
+  const treeRef = useRef(null);
+  useEffect(() => { treeRef.current = tree; }, [tree]);
+
   useEffect(() => {
     activeFileRef.current = activeFileId;
   }, [activeFileId]);
+
+  // Push URL when user clicks a file or folder (skip on first render)
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    let path;
+    if (activeFileId) {
+      path = `/projects/${projectId}/files/${activeFileId}`;
+    } else if (selectedType === "folder" && selectedItem?.id) {
+      path = `/projects/${projectId}/folders/${selectedItem.id}`;
+    } else {
+      path = `/projects/${projectId}`;
+    }
+    if (isFirstRender.current) {
+      if (window.location.pathname !== path) {
+        window.history.replaceState(null, "", path);
+      }
+      isFirstRender.current = false;
+    } else {
+      if (window.location.pathname !== path) {
+        window.history.pushState(null, "", path);
+      }
+    }
+  }, [activeFileId, selectedItem, selectedType, projectId]);
+
+  // Browser back/forward — use refs to avoid dependency churn
+  useEffect(() => {
+    const onPopState = () => {
+      if (!window.location.pathname.startsWith(`/projects/${projectId}`)) return;
+      const fileMatch = window.location.pathname.match(/^\/projects\/\d+\/files\/(\d+)/);
+      const folderMatch = window.location.pathname.match(/^\/projects\/\d+\/folders\/(\d+)/);
+      if (fileMatch) {
+        const newFileId = Number(fileMatch[1]);
+        if (newFileId === activeFileRef.current) return;
+        if (debounceTimer.current) {
+          clearTimeout(debounceTimer.current);
+          debounceTimer.current = null;
+        }
+        draftRef.current = null;
+        setActiveFileId(newFileId);
+        // selectedItem/type will be set by the [activeFileId, tree] effect
+      } else if (folderMatch) {
+        const folderId = Number(folderMatch[1]);
+        if (debounceTimer.current) {
+          clearTimeout(debounceTimer.current);
+          debounceTimer.current = null;
+        }
+        draftRef.current = null;
+        setActiveFileId(null);
+        const t = treeRef.current;
+        if (t) {
+          const folder = findFolderById(t.folders, folderId);
+          if (folder) {
+            setSelectedItem(folder);
+            setSelectedType("folder");
+          }
+        }
+      } else {
+        // Just /projects/:id — clear everything
+        if (debounceTimer.current) {
+          clearTimeout(debounceTimer.current);
+          debounceTimer.current = null;
+        }
+        draftRef.current = null;
+        setActiveFileId(null);
+        setSelectedItem(null);
+        setSelectedType(null);
+      }
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [projectId]);
+
+  // Load file content whenever activeFileId changes (from click or popstate)
+  useEffect(() => {
+    if (!activeFileId) {
+      setFileContent(null);
+      return;
+    }
+    let cancelled = false;
+    setFileLoading(true);
+    setFileError(null);
+    fetchFile(activeFileId)
+      .then((data) => { if (!cancelled) setFileContent(data.content); })
+      .catch((err) => { if (!cancelled) setFileError(err.message); })
+      .finally(() => { if (!cancelled) setFileLoading(false); });
+    return () => { cancelled = true; };
+  }, [activeFileId]);
+
+  // Update selectedItem when activeFileId or tree changes
+  useEffect(() => {
+    if (!tree) return;
+    if (activeFileId) {
+      const textItem = findTextInTree(tree.folders, activeFileId);
+      if (textItem) {
+        setSelectedItem(textItem);
+        setSelectedType("text");
+      } else {
+        // URL points to something that isn't a text — clear it
+        setActiveFileId(null);
+        setSelectedItem(null);
+        setSelectedType(null);
+      }
+    }
+  }, [activeFileId, tree]);
+
+  // ── Word/char counts ───────────────────────────────────────
 
   useEffect(() => {
     if (!editorInstance) {
@@ -199,24 +310,30 @@ export default function EditorView({ projectId }) {
       if (activeFileId && draftRef.current != null) {
         await flushDraftToCache(activeFileId, draftRef.current);
       }
-      let textItem = tree ? findTextInTree(tree.folders, fileId) : null;
-      setSelectedItem(textItem);
-      setSelectedType(textItem ? "text" : null);
       draftRef.current = null;
       setActiveFileId(fileId);
-      await loadFile(fileId);
     },
-    [activeFileId, flushDraftToCache, loadFile, tree, findTextInTree],
+    [activeFileId, flushDraftToCache],
   );
 
   const handleSelectFolder = useCallback((folderId) => {
     if (!tree) return;
     const folder = findFolderById(tree.folders, folderId);
     if (folder) {
+      // Clear active file — folder selection replaces text editing
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+        debounceTimer.current = null;
+      }
+      if (activeFileId && draftRef.current != null) {
+        flushDraftToCache(activeFileId, draftRef.current);
+      }
+      draftRef.current = null;
+      setActiveFileId(null);
       setSelectedItem(folder);
       setSelectedType("folder");
     }
-  }, [tree, findFolderById]);
+  }, [tree, findFolderById, activeFileId, flushDraftToCache]);
 
   const handleEditorUpdate = useCallback(
     (markdown) => {
@@ -439,6 +556,7 @@ export default function EditorView({ projectId }) {
               </button>
             </div>
           )}
+          {activeFileId && (
           <div style={styles.topBar}>
             <FormattingToolbar editor={editorInstance} />
             <button
@@ -450,6 +568,7 @@ export default function EditorView({ projectId }) {
               {saving ? t("editor.saving") : t("editor.save")}
             </button>
           </div>
+          )}
         </div>
 
         <div style={styles.editorArea}>

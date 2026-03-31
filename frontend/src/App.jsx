@@ -6,12 +6,26 @@ import ImportModal from "./ImportModal";
 import OIDCCallback from "./OIDCCallback";
 
 export default function App() {
+  // Handle OIDC callback route — must be before any conditional logic
+  const [isOidcCallback] = useState(() => window.location.pathname === "/oidc/callback");
+
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [oidcEnabled, setOidcEnabled] = useState(false);
 
-  const [selectedProjectId, setSelectedProjectId] = useState(null);
+  const [selectedProjectId, setSelectedProjectId] = useState(() => {
+    const m = window.location.pathname.match(/^\/projects\/(\d+)/);
+    return m ? Number(m[1]) : null;
+  });
+  const [initialFileId] = useState(() => {
+    const m = window.location.pathname.match(/^\/projects\/\d+\/files\/(\d+)/);
+    return m ? Number(m[1]) : null;
+  });
+  const [initialFolderId] = useState(() => {
+    const m = window.location.pathname.match(/^\/projects\/\d+\/folders\/(\d+)/);
+    return m ? Number(m[1]) : null;
+  });
   const [projects, setProjects] = useState([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [projectsError, setProjectsError] = useState(null);
@@ -24,11 +38,6 @@ export default function App() {
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
 
-  // Handle OIDC callback route
-  if (window.location.pathname === "/oidc/callback") {
-    return <OIDCCallback onAuth={(u) => { setUser(u); setLoading(false); }} />;
-  }
-
   useEffect(() => {
     fetchMe()
       .then(setUser)
@@ -37,6 +46,29 @@ export default function App() {
     fetchConfig()
       .then((cfg) => setOidcEnabled(cfg.oidc_enabled))
       .catch(() => {});
+  }, []);
+
+  // Sync URL with navigation state
+  useEffect(() => {
+    if (selectedProjectId) {
+      if (!window.location.pathname.startsWith(`/projects/${selectedProjectId}`)) {
+        window.history.pushState(null, "", `/projects/${selectedProjectId}`);
+      }
+    } else if (!isOidcCallback) {
+      if (window.location.pathname !== "/") {
+        window.history.pushState(null, "", "/");
+      }
+    }
+  }, [selectedProjectId, isOidcCallback]);
+
+  // Handle browser back/forward
+  useEffect(() => {
+    const onPopState = () => {
+      const m = window.location.pathname.match(/^\/projects\/(\d+)/);
+      setSelectedProjectId(m ? Number(m[1]) : null);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
   // Fetch projects when user is logged in
@@ -55,6 +87,7 @@ export default function App() {
     setUser(null);
     setSelectedProjectId(null);
     setProjects([]);
+    window.history.pushState(null, "", "/");
   };
 
   const handleCreateProject = async (e) => {
@@ -127,6 +160,8 @@ export default function App() {
 
   if (loading) return <p style={{ textAlign: "center", marginTop: "2rem" }}>Loading…</p>;
 
+  if (isOidcCallback) return <OIDCCallback onAuth={(u) => { setUser(u); setLoading(false); }} />;
+
   if (!user) return <AuthForm onAuth={setUser} oidcEnabled={oidcEnabled} />;
 
   // Editor view when a project is selected
@@ -143,7 +178,7 @@ export default function App() {
           </button>
           <span style={{ color: "#666", fontSize: 13 }}>{user.username}</span>
         </div>
-        <EditorView projectId={selectedProjectId} />
+        <EditorView projectId={selectedProjectId} initialFileId={initialFileId} initialFolderId={initialFolderId} />
       </div>
     );
   }
