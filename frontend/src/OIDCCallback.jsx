@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { oidcCallback, oidcLink } from "./api";
 import { useI18n } from "./I18nContext";
 
 export default function OIDCCallback({ onAuth }) {
   const t = useI18n();
   const [error, setError] = useState(null);
+  const onAuthRef = useRef(onAuth);
+  onAuthRef.current = onAuth;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -26,8 +28,8 @@ export default function OIDCCallback({ onAuth }) {
           window.location.replace("/");
         } else {
           const user = await oidcCallback(code, state);
-          onAuth(user);
           window.history.replaceState({}, "", "/");
+          onAuthRef.current(user);
         }
       } catch (err) {
         setError(err.message);
@@ -35,7 +37,7 @@ export default function OIDCCallback({ onAuth }) {
     };
 
     handle();
-  }, [onAuth]);
+  }, []); // Run once on mount — onAuth accessed via ref
 
   if (error) {
     return (

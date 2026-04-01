@@ -8,7 +8,7 @@ import OIDCCallback from "./OIDCCallback";
 
 export default function App() {
   // Handle OIDC callback route — must be before any conditional logic
-  const [isOidcCallback] = useState(() => window.location.pathname === "/oidc/callback");
+  const [isOidcCallback, setIsOidcCallback] = useState(() => window.location.pathname === "/oidc/callback");
 
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -40,6 +40,10 @@ export default function App() {
   const [editDescription, setEditDescription] = useState("");
 
   useEffect(() => {
+    if (isOidcCallback) {
+      setLoading(false);
+      return;
+    }
     fetchMe()
       .then(setUser)
       .catch(() => setUser(null))
@@ -161,7 +165,7 @@ export default function App() {
 
   if (loading) return <p style={{ textAlign: "center", marginTop: "2rem" }}>Loading…</p>;
 
-  if (isOidcCallback) return <OIDCCallback onAuth={(u) => { setUser(u); setLoading(false); }} />;
+  if (isOidcCallback) return <OIDCCallback onAuth={(u) => { setUser(u); setIsOidcCallback(false); }} />;
 
   if (!user) return <AuthForm onAuth={setUser} oidcEnabled={oidcEnabled} />;
 
