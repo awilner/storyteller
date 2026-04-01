@@ -185,7 +185,7 @@ export default function App() {
 
   // Dashboard view
   return (
-    <div style={{ maxWidth: 600, margin: "2rem auto", fontFamily: "system-ui" }}>
+    <div style={{ maxWidth: 600, margin: "2rem auto", padding: "0 16px", fontFamily: "system-ui" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h1>Dashboard</h1>
         <span>

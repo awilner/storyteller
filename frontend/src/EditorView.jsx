@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useI18n } from "./I18nContext";
+import useIsMobile from "./useIsMobile";
 import ProjectTree from "./ProjectTree";
 import TipTapEditor from "./TipTapEditor";
 import FormattingToolbar from "./FormattingToolbar";
@@ -82,6 +83,8 @@ const styles = {
 
 export default function EditorView({ projectId, initialFileId }) {
   const t = useI18n();
+  const isMobile = useIsMobile();
+  const [mobilePanel, setMobilePanel] = useState("tree"); // "tree" | "editor" | "properties"
   const [tree, setTree] = useState(null);
   const [treeLoading, setTreeLoading] = useState(true);
   const [treeError, setTreeError] = useState(null);
@@ -312,8 +315,9 @@ export default function EditorView({ projectId, initialFileId }) {
       }
       draftRef.current = null;
       setActiveFileId(fileId);
+      if (isMobile) setMobilePanel("editor");
     },
-    [activeFileId, flushDraftToCache],
+    [activeFileId, flushDraftToCache, isMobile],
   );
 
   const handleSelectFolder = useCallback((folderId) => {
@@ -516,112 +520,157 @@ export default function EditorView({ projectId, initialFileId }) {
     };
   }, []);
 
-  return (
-    <div style={styles.container}>
-      <div style={styles.sidebar}>
-        {treeLoading && <p style={{ padding: 12, color: "#888" }}>{t("editor.loading_project")}</p>}
-        {treeError && <p style={{ padding: 12, color: "red" }}>{treeError}</p>}
-        {tree && (
-          <ProjectTree
-            tree={tree}
-            activeFileId={activeFileId}
-            onSelectFile={handleSelectFile}
-            onSelectFolder={handleSelectFolder}
-            selectedFolderId={selectedType === "folder" ? selectedItem?.id : null}
-            onAddFolder={handleAddFolder}
-            onDeleteFolder={handleDeleteFolder}
-            onAddText={handleAddText}
-            onDeleteText={handleDeleteText}
-            onReorder={handleReorder}
-            onRenameFolder={handleRenameFolder}
-            onRenameText={handleRenameText}
-            onChangeFolderIcon={handleChangeFolderIcon}
-            onChangeTextIcon={handleChangeTextIcon}
+  const sidebarContent = (
+    <>
+      {treeLoading && <p style={{ padding: 12, color: "#888" }}>{t("editor.loading_project")}</p>}
+      {treeError && <p style={{ padding: 12, color: "red" }}>{treeError}</p>}
+      {tree && (
+        <ProjectTree
+          tree={tree}
+          activeFileId={activeFileId}
+          onSelectFile={handleSelectFile}
+          onSelectFolder={handleSelectFolder}
+          selectedFolderId={selectedType === "folder" ? selectedItem?.id : null}
+          onAddFolder={handleAddFolder}
+          onDeleteFolder={handleDeleteFolder}
+          onAddText={handleAddText}
+          onDeleteText={handleDeleteText}
+          onReorder={handleReorder}
+          onRenameFolder={handleRenameFolder}
+          onRenameText={handleRenameText}
+          onChangeFolderIcon={handleChangeFolderIcon}
+          onChangeTextIcon={handleChangeTextIcon}
+        />
+      )}
+    </>
+  );
+
+  const editorContent = (
+    <div style={styles.center}>
+      <div>
+        {cacheWarning && (
+          <div style={styles.banner} role="alert">
+            ⚠ {cacheWarning}
+            <button
+              type="button"
+              onClick={() => setCacheWarning(null)}
+              style={{ marginLeft: 8, background: "none", border: "none", cursor: "pointer", fontWeight: "bold" }}
+              aria-label={t("editor.dismiss_warning")}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+        {activeFileId && (
+        <div style={styles.topBar}>
+          <FormattingToolbar editor={editorInstance} />
+          <button
+            type="button"
+            style={styles.saveBtn}
+            onClick={handleSave}
+            disabled={saving || !activeFileId}
+          >
+            {saving ? t("editor.saving") : t("editor.save")}
+          </button>
+        </div>
+        )}
+      </div>
+
+      <div style={styles.editorArea}>
+        {!activeFileId && (
+          <div style={styles.placeholder}>{t("editor.select_file_placeholder")}</div>
+        )}
+        {fileLoading && <p style={{ color: "#888" }}>{t("editor.loading_file")}</p>}
+        {fileError && <p style={{ color: "red" }}>{fileError}</p>}
+        {activeFileId && !fileLoading && !fileError && fileContent != null && (
+          <TipTapEditor
+            content={fileContent}
+            onUpdate={handleEditorUpdate}
+            editorRef={setEditorInstance}
           />
         )}
       </div>
 
-      <div style={styles.center}>
-        <div>
-          {cacheWarning && (
-            <div style={styles.banner} role="alert">
-              ⚠ {cacheWarning}
-              <button
-                type="button"
-                onClick={() => setCacheWarning(null)}
-                style={{ marginLeft: 8, background: "none", border: "none", cursor: "pointer", fontWeight: "bold" }}
-                aria-label={t("editor.dismiss_warning")}
-              >
-                ✕
-              </button>
-            </div>
-          )}
-          {activeFileId && (
-          <div style={styles.topBar}>
-            <FormattingToolbar editor={editorInstance} />
-            <button
-              type="button"
-              style={styles.saveBtn}
-              onClick={handleSave}
-              disabled={saving || !activeFileId}
-            >
-              {saving ? t("editor.saving") : t("editor.save")}
-            </button>
-          </div>
-          )}
-        </div>
-
-        <div style={styles.editorArea}>
-          {!activeFileId && (
-            <div style={styles.placeholder}>{t("editor.select_file_placeholder")}</div>
-          )}
-          {fileLoading && <p style={{ color: "#888" }}>{t("editor.loading_file")}</p>}
-          {fileError && <p style={{ color: "red" }}>{fileError}</p>}
-          {activeFileId && !fileLoading && !fileError && fileContent != null && (
-            <TipTapEditor
-              content={fileContent}
-              onUpdate={handleEditorUpdate}
-              editorRef={setEditorInstance}
-            />
-          )}
-        </div>
-
-        <div style={{ ...styles.statusBar, visibility: activeFileId ? "visible" : "hidden" }} aria-live="polite">
-          <span>{wordCount.toLocaleString()} {t("editor.words")}</span>
-          <span>{charCount.toLocaleString()} {t("editor.characters")}</span>
-          {selectedType === "text" && selectedItem?.target_word_count > 0 && (() => {
-            const target = selectedItem.target_word_count;
-            const pct = Math.min(Math.round((wordCount / target) * 100), 100);
-            const r = pct < 50 ? 220 : Math.round(220 - (pct - 50) * 4);
-            const g = pct < 50 ? Math.round(80 + pct * 3) : 200;
-            const barColor = `rgb(${r},${g},60)`;
-            return (
-              <span style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
-                <span style={{ width: 100, height: 8, background: "#ddd", borderRadius: 4, overflow: "hidden" }}>
-                  <span style={{ display: "block", width: `${pct}%`, height: "100%", background: barColor, borderRadius: 4, transition: "width 0.3s" }} />
-                </span>
-                <span>{pct}%</span>
-                <span>{wordCount.toLocaleString()}/{target.toLocaleString()}</span>
+      <div style={{ ...styles.statusBar, visibility: activeFileId ? "visible" : "hidden" }} aria-live="polite">
+        <span>{wordCount.toLocaleString()} {t("editor.words")}</span>
+        <span>{charCount.toLocaleString()} {t("editor.characters")}</span>
+        {selectedType === "text" && selectedItem?.target_word_count > 0 && (() => {
+          const target = selectedItem.target_word_count;
+          const pct = Math.min(Math.round((wordCount / target) * 100), 100);
+          const r = pct < 50 ? 220 : Math.round(220 - (pct - 50) * 4);
+          const g = pct < 50 ? Math.round(80 + pct * 3) : 200;
+          const barColor = `rgb(${r},${g},60)`;
+          return (
+            <span style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
+              <span style={{ width: 100, height: 8, background: "#ddd", borderRadius: 4, overflow: "hidden" }}>
+                <span style={{ display: "block", width: `${pct}%`, height: "100%", background: barColor, borderRadius: 4, transition: "width 0.3s" }} />
               </span>
-            );
-          })()}
+              <span>{pct}%</span>
+              <span>{wordCount.toLocaleString()}/{target.toLocaleString()}</span>
+            </span>
+          );
+        })()}
+      </div>
+    </div>
+  );
+
+  const propertiesContent = (
+    <div style={{ overflowY: "auto", background: "#fafafa", ...(isMobile ? { flex: 1 } : { width: 260, minWidth: 260, borderLeft: "1px solid #ddd" }) }}>
+      {selectedItem && (
+        <PropertiesPanel
+          item={selectedItem}
+          type={selectedType}
+          onSave={handleSaveProperties}
+        />
+      )}
+      {activeFileId && (
+        <VersionHistoryPanel fileId={activeFileId} onRevert={handleRevert} />
+      )}
+    </div>
+  );
+
+  // ── Mobile layout: one panel at a time with tab bar ────────
+  if (isMobile) {
+    const tabBtn = (panel, label) => ({
+      flex: 1,
+      padding: "8px 0",
+      border: "none",
+      borderBottom: mobilePanel === panel ? "2px solid #4a90d9" : "2px solid transparent",
+      background: mobilePanel === panel ? "#fff" : "#f5f5f5",
+      color: mobilePanel === panel ? "#4a90d9" : "#666",
+      fontWeight: mobilePanel === panel ? 600 : 400,
+      fontSize: 13,
+      cursor: "pointer",
+    });
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+        <div style={{ display: "flex", borderBottom: "1px solid #ddd", flexShrink: 0 }}>
+          <button type="button" style={tabBtn("tree", "Tree")} onClick={() => setMobilePanel("tree")}>
+            📁 Tree
+          </button>
+          <button type="button" style={tabBtn("editor", "Editor")} onClick={() => setMobilePanel("editor")}>
+            ✏️ Editor
+          </button>
+          <button type="button" style={tabBtn("properties", "Info")} onClick={() => setMobilePanel("properties")}>
+            ℹ️ Info
+          </button>
+        </div>
+        <div style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          {mobilePanel === "tree" && <div style={{ flex: 1, overflowY: "auto" }}>{sidebarContent}</div>}
+          {mobilePanel === "editor" && editorContent}
+          {mobilePanel === "properties" && propertiesContent}
         </div>
       </div>
+    );
+  }
 
-      {(selectedItem || activeFileId) && (
-        <div style={{ width: 260, minWidth: 260, borderLeft: "1px solid #ddd", overflowY: "auto", background: "#fafafa" }}>
-          {selectedItem && (
-            <PropertiesPanel
-              item={selectedItem}
-              type={selectedType}
-              onSave={handleSaveProperties}
-            />
-          )}
-          {activeFileId && (
-            <VersionHistoryPanel fileId={activeFileId} onRevert={handleRevert} />
-          )}
-        </div>
-      )}
+  // ── Desktop layout: three columns ──────────────────────────
+  return (
+    <div style={styles.container}>
+      <div style={styles.sidebar}>{sidebarContent}</div>
+      {editorContent}
+      {(selectedItem || activeFileId) && propertiesContent}
     </div>
   );
 }
