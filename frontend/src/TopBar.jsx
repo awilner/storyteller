@@ -44,7 +44,7 @@ const contextStyle = {
   minWidth: 0,
 };
 
-export default function TopBar({ projectTitle, navSection }) {
+export default function TopBar({ projectTitle, navSection, onMenuToggle }) {
   const t = useI18n();
 
   const sectionLabel = navSection && navLabelKeys[navSection]
@@ -53,6 +53,16 @@ export default function TopBar({ projectTitle, navSection }) {
 
   return (
     <div style={barStyle}>
+      {onMenuToggle && (
+        <button
+          type="button"
+          onClick={onMenuToggle}
+          style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", padding: "2px 4px", lineHeight: 1, color: "#555" }}
+          aria-label="Menu"
+        >
+          ☰
+        </button>
+      )}
       <img src={logoSrc} alt="" style={{ height: 24 }} />
       <span style={logoStyle}>Storyteller</span>
       {projectTitle && (

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useI18n } from "./I18nContext";
 import useIsMobile from "./useIsMobile";
-import NavSidebar, { NavBar } from "./NavSidebar";
+import NavSidebar, { MobileDrawer } from "./NavSidebar";
 import TopBar from "./TopBar";
 import ProjectTree from "./ProjectTree";
 import TipTapEditor from "./TipTapEditor";
@@ -87,7 +87,8 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   const t = useI18n();
   const isMobile = useIsMobile();
   const [mobilePanel, setMobilePanel] = useState("tree"); // "tree" | "editor" | "properties"
-  const [navSection, setNavSection] = useState("editor"); // "editor" | "outline" | "characters" | "locations" | "notes"
+  const [navSection, setNavSection] = useState("editor");
+  const [drawerOpen, setDrawerOpen] = useState(false); // "editor" | "outline" | "characters" | "locations" | "notes"
   const [tree, setTree] = useState(null);
   const [treeLoading, setTreeLoading] = useState(true);
   const [treeError, setTreeError] = useState(null);
@@ -654,8 +655,16 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
 
     return (
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
-        <TopBar projectTitle={tree?.title} navSection={navSection} />
-        <NavBar active={navSection} onChange={setNavSection} onDashboard={onDashboard} onSettings={() => {}} onLogout={onLogout} />
+        <TopBar projectTitle={tree?.title} navSection={navSection} onMenuToggle={() => setDrawerOpen(true)} />
+        <MobileDrawer
+          open={drawerOpen}
+          active={navSection}
+          onChange={setNavSection}
+          onDashboard={onDashboard}
+          onSettings={() => {}}
+          onLogout={onLogout}
+          onClose={() => setDrawerOpen(false)}
+        />
         <div style={{ display: "flex", borderBottom: "1px solid #ddd", flexShrink: 0 }}>
           <button type="button" style={tabBtn("tree", "Tree")} onClick={() => setMobilePanel("tree")}>
             📁 Tree
