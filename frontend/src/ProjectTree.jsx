@@ -9,7 +9,12 @@ const DEFAULT_TEXT_ICON = "📄";
 
 /* ── Transform backend tree → arborist nodes ───────────────── */
 
-function toArboristNodes(tree) {
+/**
+ * Transform backend tree → arborist nodes.
+ * @param {object} tree - The project tree from the API.
+ * @param {string} filter - "manuscript" (folders/texts only), "characters", "locations", "notes", or "all".
+ */
+function toArboristNodes(tree, filter = "all") {
   if (!tree) return [];
 
   const mapFolder = (folder) => {
@@ -39,33 +44,49 @@ function toArboristNodes(tree) {
     };
   };
 
-  const topItems = [];
-  for (const folder of tree.folders || []) {
-    topItems.push({ ...folder, _kind: "folder" });
+  // Manuscript folders
+  if (filter === "manuscript" || filter === "all") {
+    const topItems = [];
+    for (const folder of tree.folders || []) {
+      topItems.push({ ...folder, _kind: "folder" });
+    }
+    topItems.sort((a, b) => a.order - b.order);
+    const nodes = topItems.map((item) => mapFolder(item));
+
+    if (filter === "manuscript") return nodes;
+
+    // "all" — append world-building groups
+    const wb = tree.world_building || {};
+    for (const [key, items] of Object.entries(wb)) {
+      if (!items?.length) continue;
+      nodes.push({
+        id: `wb-${key}`,
+        name: key.charAt(0).toUpperCase() + key.slice(1),
+        _type: "wb-group",
+        children: items.slice().sort((a, b) => a.order - b.order).map((f) => ({
+          id: `wb-file-${f.id}`,
+          name: f.title,
+          _type: "wb-file",
+          _dbId: f.id,
+          _icon: f.icon || "",
+          _data: f,
+        })),
+      });
+    }
+    return nodes;
   }
-  topItems.sort((a, b) => a.order - b.order);
 
-  const nodes = topItems.map((item) => mapFolder(item));
-
+  // World-building filter: "characters", "locations", or "notes"
   const wb = tree.world_building || {};
-  for (const [key, items] of Object.entries(wb)) {
-    if (!items?.length) continue;
-    nodes.push({
-      id: `wb-${key}`,
-      name: key.charAt(0).toUpperCase() + key.slice(1),
-      _type: "wb-group",
-      children: items.slice().sort((a, b) => a.order - b.order).map((f) => ({
-        id: `wb-file-${f.id}`,
-        name: f.title,
-        _type: "wb-file",
-        _dbId: f.id,
-        _icon: f.icon || "",
-        _data: f,
-      })),
-    });
-  }
-
-  return nodes;
+  const items = wb[filter] || [];
+  return items.slice().sort((a, b) => a.order - b.order).map((f) => ({
+    id: `wb-file-${f.id}`,
+    name: f.title,
+    _type: "wb-file",
+    _dbId: f.id,
+    _icon: f.icon || "",
+    _data: f,
+  }));
 }
 
 /* ── Context menu ──────────────────────────────────────────── */
@@ -212,7 +233,7 @@ function Node({ node, style, dragHandle }) {
 
 /* ── Main component ────────────────────────────────────────── */
 
-export default function ProjectTree({ tree, onSelectFile, activeFileId, selectedFolderId, onSelectFolder, onAddFolder, onDeleteFolder, onAddText, onDeleteText, onReorder, onRenameFolder, onRenameText, onChangeFolderIcon, onChangeTextIcon }) {
+export default function ProjectTree({ tree, onSelectFile, activeFileId, selectedFolderId, onSelectFolder, onAddFolder, onDeleteFolder, onAddText, onDeleteText, onReorder, onRenameFolder, onRenameText, onChangeFolderIcon, onChangeTextIcon, treeFilter }) {
   const t = useI18n();
   const [menu, setMenu] = useState(null);
   const [iconPicker, setIconPicker] = useState(null);
@@ -229,7 +250,7 @@ export default function ProjectTree({ tree, onSelectFile, activeFileId, selected
     return () => ro.disconnect();
   }, []);
 
-  const arboristData = useMemo(() => toArboristNodes(tree), [tree]);
+  const arboristData = useMemo(() => toArboristNodes(tree, treeFilter || "all"), [tree, treeFilter]);
 
   const selection = useMemo(() => {
     if (activeFileId) return `text-${activeFileId}`;

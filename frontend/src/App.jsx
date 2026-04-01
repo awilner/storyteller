@@ -168,17 +168,13 @@ export default function App() {
   if (selectedProjectId) {
     return (
       <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-        <div style={{ flexShrink: 0, padding: "4px 12px", borderBottom: "1px solid #ddd", background: "#f9f9f9", display: "flex", alignItems: "center", gap: 12 }}>
-          <button
-            type="button"
-            onClick={() => setSelectedProjectId(null)}
-            style={{ cursor: "pointer", border: "1px solid #ccc", borderRadius: 4, padding: "4px 10px", background: "#fff" }}
-          >
-            ← Back to Dashboard
-          </button>
-          <span style={{ color: "#666", fontSize: 13 }}>{user.username}</span>
-        </div>
-        <EditorView projectId={selectedProjectId} initialFileId={initialFileId} initialFolderId={initialFolderId} />
+        <EditorView
+          projectId={selectedProjectId}
+          initialFileId={initialFileId}
+          initialFolderId={initialFolderId}
+          onLogout={handleLogout}
+          onDashboard={() => setSelectedProjectId(null)}
+        />
       </div>
     );
   }

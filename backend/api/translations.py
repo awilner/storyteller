@@ -39,7 +39,6 @@ def _get_ui_strings():
         "dashboard.open": _("Open"),
         "dashboard.delete": _("Delete"),
         "dashboard.confirm_delete_project": _('Delete "%(title)s"? This will permanently remove the project and all its content.'),
-        "dashboard.back_to_dashboard": _("← Back to Dashboard"),
 
         # OIDC
         "oidc.linked_identities": _("Linked OIDC Identities"),
@@ -105,6 +104,16 @@ def _get_ui_strings():
 
         # Version history
         "versions.title": _("Version History"),
+
+        # Navigation
+        "nav.editor": _("Editor"),
+        "nav.outline": _("Outline"),
+        "nav.characters": _("Characters"),
+        "nav.locations": _("Locations"),
+        "nav.notes": _("Notes"),
+        "nav.dashboard": _("Dashboard"),
+        "nav.settings": _("Settings"),
+        "nav.logout": _("Log out"),
         "versions.loading": _("Loading versions…"),
         "versions.no_versions": _("No versions yet."),
         "versions.chars": _("chars"),

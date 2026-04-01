@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useI18n } from "./I18nContext";
 import useIsMobile from "./useIsMobile";
+import NavSidebar, { NavBar } from "./NavSidebar";
 import ProjectTree from "./ProjectTree";
 import TipTapEditor from "./TipTapEditor";
 import FormattingToolbar from "./FormattingToolbar";
@@ -81,10 +82,11 @@ const styles = {
   },
 };
 
-export default function EditorView({ projectId, initialFileId }) {
+export default function EditorView({ projectId, initialFileId, onLogout, onDashboard }) {
   const t = useI18n();
   const isMobile = useIsMobile();
   const [mobilePanel, setMobilePanel] = useState("tree"); // "tree" | "editor" | "properties"
+  const [navSection, setNavSection] = useState("editor"); // "editor" | "outline" | "characters" | "locations" | "notes"
   const [tree, setTree] = useState(null);
   const [treeLoading, setTreeLoading] = useState(true);
   const [treeError, setTreeError] = useState(null);
@@ -520,6 +522,11 @@ export default function EditorView({ projectId, initialFileId }) {
     };
   }, []);
 
+  // Map nav section to tree filter
+  const treeFilter = navSection === "editor" ? "manuscript"
+    : navSection === "outline" ? "all"
+    : navSection; // "characters", "locations", "notes"
+
   const sidebarContent = (
     <>
       {treeLoading && <p style={{ padding: 12, color: "#888" }}>{t("editor.loading_project")}</p>}
@@ -527,6 +534,7 @@ export default function EditorView({ projectId, initialFileId }) {
       {tree && (
         <ProjectTree
           tree={tree}
+          treeFilter={treeFilter}
           activeFileId={activeFileId}
           onSelectFile={handleSelectFile}
           onSelectFolder={handleSelectFolder}
@@ -645,6 +653,7 @@ export default function EditorView({ projectId, initialFileId }) {
 
     return (
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+        <NavBar active={navSection} onChange={setNavSection} onDashboard={onDashboard} onSettings={() => {}} onLogout={onLogout} />
         <div style={{ display: "flex", borderBottom: "1px solid #ddd", flexShrink: 0 }}>
           <button type="button" style={tabBtn("tree", "Tree")} onClick={() => setMobilePanel("tree")}>
             📁 Tree
@@ -665,9 +674,10 @@ export default function EditorView({ projectId, initialFileId }) {
     );
   }
 
-  // ── Desktop layout: three columns ──────────────────────────
+  // ── Desktop layout: nav sidebar + three columns ────────────
   return (
     <div style={styles.container}>
+      <NavSidebar active={navSection} onChange={setNavSection} onDashboard={onDashboard} onSettings={() => {}} onLogout={onLogout} />
       <div style={styles.sidebar}>{sidebarContent}</div>
       {editorContent}
       {(selectedItem || activeFileId) && propertiesContent}

@@ -43,6 +43,7 @@ def config_view(request):
         "oidc_enabled": bool(settings.OIDC_CLIENT_ID and settings.OIDC_DISCOVERY_URL),
     })
 
+
 # ── Local auth ────────────────────────────────────────────────
 
 @api_view(["POST"])
