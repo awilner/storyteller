@@ -375,8 +375,7 @@ export default function ProjectTree({ tree, onSelectFile, activeFileId, selected
 
   return (
     <div ref={containerRef} style={{ width: "100%", height: "100%", fontFamily: "system-ui" }} onContextMenu={handleContextMenu}>
-      <h2 style={{ fontSize: "1rem", fontWeight: 700, padding: "0.25rem 0.75rem", margin: 0 }}>{tree.title}</h2>
-      <div style={{ paddingLeft: "0.75rem", paddingRight: "0.75rem" }}>
+      <div style={{ paddingLeft: "0.75rem", paddingRight: "0.75rem", paddingTop: "0.5rem" }}>
       <Tree
         ref={treeRef}
         data={arboristData}

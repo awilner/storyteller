@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useI18n } from "./I18nContext";
 import useIsMobile from "./useIsMobile";
 import NavSidebar, { NavBar } from "./NavSidebar";
+import TopBar from "./TopBar";
 import ProjectTree from "./ProjectTree";
 import TipTapEditor from "./TipTapEditor";
 import FormattingToolbar from "./FormattingToolbar";
@@ -653,6 +654,7 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
 
     return (
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+        <TopBar projectTitle={tree?.title} navSection={navSection} />
         <NavBar active={navSection} onChange={setNavSection} onDashboard={onDashboard} onSettings={() => {}} onLogout={onLogout} />
         <div style={{ display: "flex", borderBottom: "1px solid #ddd", flexShrink: 0 }}>
           <button type="button" style={tabBtn("tree", "Tree")} onClick={() => setMobilePanel("tree")}>
@@ -676,11 +678,14 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
 
   // ── Desktop layout: nav sidebar + three columns ────────────
   return (
-    <div style={styles.container}>
-      <NavSidebar active={navSection} onChange={setNavSection} onDashboard={onDashboard} onSettings={() => {}} onLogout={onLogout} />
-      <div style={styles.sidebar}>{sidebarContent}</div>
-      {editorContent}
-      {(selectedItem || activeFileId) && propertiesContent}
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+      <TopBar projectTitle={tree?.title} navSection={navSection} />
+      <div style={{ ...styles.container, flex: 1 }}>
+        <NavSidebar active={navSection} onChange={setNavSection} onDashboard={onDashboard} onSettings={() => {}} onLogout={onLogout} />
+        <div style={styles.sidebar}>{sidebarContent}</div>
+        {editorContent}
+        {(selectedItem || activeFileId) && propertiesContent}
+      </div>
     </div>
   );
 }

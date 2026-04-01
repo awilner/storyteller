@@ -3,6 +3,7 @@ import { fetchMe, fetchProjects, createProject, deleteProject, updateProject, lo
 import AuthForm from "./AuthForm";
 import EditorView from "./EditorView";
 import ImportModal from "./ImportModal";
+import TopBar from "./TopBar";
 import OIDCCallback from "./OIDCCallback";
 
 export default function App() {
@@ -181,15 +182,17 @@ export default function App() {
 
   // Dashboard view
   return (
-    <div style={{ maxWidth: 600, margin: "2rem auto", padding: "0 16px", fontFamily: "system-ui" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1>Dashboard</h1>
-        <span>
-          {user.username}{" "}
-          <button type="button" onClick={handleLogout}>Log out</button>
-        </span>
-      </div>
-      {error && <p style={{ color: "red" }}>{error}</p>}
+    <div>
+      <TopBar />
+      <div style={{ maxWidth: 600, margin: "2rem auto", padding: "0 16px", fontFamily: "system-ui" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h2 style={{ margin: "0.5rem 0" }}>Your Projects</h2>
+          <span>
+            {user.username}{" "}
+            <button type="button" onClick={handleLogout}>Log out</button>
+          </span>
+        </div>
+        {error && <p style={{ color: "red" }}>{error}</p>}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h2>Your Projects</h2>
@@ -361,6 +364,7 @@ export default function App() {
           onImported={(project) => setProjects((prev) => [project, ...prev])}
         />
       )}
+      </div>
     </div>
   );
 }
