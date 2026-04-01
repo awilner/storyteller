@@ -7,9 +7,9 @@ export default function SettingsPage({ user, onBack, onLogout, onAccount }) {
   return (
     <div>
       <TopBar username={user.username} onHome={onBack} onAccount={onAccount} onSettings={onBack} onLogout={onLogout} />
-      <div style={{ maxWidth: 500, margin: "2rem auto", padding: "0 16px", fontFamily: "system-ui" }}>
+      <div className="narrow-container">
         <h2>{t("settings.title") || "Settings"}</h2>
-        <p style={{ color: "#888" }}>{t("settings.placeholder") || "Settings will be available here in a future update."}</p>
+        <p className="muted-text">{t("settings.placeholder") || "Settings will be available here in a future update."}</p>
       </div>
     </div>
   );

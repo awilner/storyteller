@@ -1,0 +1,9 @@
+.oidc-callback-container {
+  max-width: 400px;
+  margin: 4rem auto;
+  font-family: system-ui;
+}
+.oidc-completing {
+  text-align: center;
+  margin-top: 4rem;
+}

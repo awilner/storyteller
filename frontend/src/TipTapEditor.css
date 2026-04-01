@@ -1,0 +1,9 @@
+.tiptap-wrapper {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 0.5rem;
+  min-height: 300px;
+  cursor: text;
+}
+.ProseMirror { min-height: 280px; outline: none; }
+.ProseMirror:focus { outline: none; }

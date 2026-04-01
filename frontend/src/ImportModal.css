@@ -1,0 +1,46 @@
+.import-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.import-modal {
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  width: 400px;
+  max-width: 90vw;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+}
+.import-modal h3 { margin: 0 0 16px; }
+.import-label {
+  display: block;
+  margin-bottom: 12px;
+}
+.import-label-text {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+  color: #555;
+}
+.import-select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+.import-file-input {
+  width: 100%;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+.import-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

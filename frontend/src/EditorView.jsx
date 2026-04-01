@@ -9,79 +9,9 @@ import FormattingToolbar from "./FormattingToolbar";
 import VersionHistoryPanel from "./VersionHistoryPanel";
 import PropertiesPanel from "./PropertiesPanel";
 import { fetchProjectTree, fetchFile, saveDraftCache, createVersion, createFolder, deleteFolder, createText, deleteText, updateFolder, updateText, reorderTree } from "./api";
+import "./EditorView.css";
 
 const DEBOUNCE_MS = 2000;
-
-const styles = {
-  container: {
-    display: "flex",
-    flex: 1,
-    minHeight: 0,
-    overflow: "hidden",
-    fontFamily: "system-ui",
-  },
-  sidebar: {
-    width: 250,
-    minWidth: 250,
-    borderRight: "1px solid #ddd",
-    overflowY: "auto",
-    background: "#fafafa",
-  },
-  center: {
-    flex: 1,
-    display: "grid",
-    gridTemplateRows: "auto 1fr auto",
-    minWidth: 0,
-    overflow: "hidden",
-  },
-  topBar: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "4px 12px",
-    borderBottom: "1px solid #ddd",
-    background: "#f9f9f9",
-  },
-  editorArea: {
-    overflowY: "auto",
-    minHeight: 0,
-    padding: "0 12px 24px",
-  },
-  banner: {
-    background: "#fff3cd",
-    color: "#856404",
-    padding: "6px 12px",
-    fontSize: 13,
-    borderBottom: "1px solid #ffc107",
-  },
-  placeholder: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    height: "100%",
-    color: "#999",
-    fontSize: "1.1rem",
-  },
-  saveBtn: {
-    padding: "4px 14px",
-    cursor: "pointer",
-    border: "1px solid #ccc",
-    borderRadius: 4,
-    background: "#4a90d9",
-    color: "#fff",
-    fontWeight: 600,
-    fontSize: 13,
-  },
-  statusBar: {
-    display: "flex",
-    gap: 16,
-    padding: "4px 12px",
-    borderTop: "1px solid #ddd",
-    background: "#f5f5f5",
-    fontSize: 12,
-    color: "#666",
-  },
-};
 
 export default function EditorView({ projectId, initialFileId, onLogout, onDashboard, username, onAccount, onSettings }) {
   const t = useI18n();
@@ -531,8 +461,8 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
 
   const sidebarContent = (
     <>
-      {treeLoading && <p style={{ padding: 12, color: "#888" }}>{t("editor.loading_project")}</p>}
-      {treeError && <p style={{ padding: 12, color: "red" }}>{treeError}</p>}
+      {treeLoading && <p className="loading-text" style={{ padding: 12 }}>{t("editor.loading_project")}</p>}
+      {treeError && <p className="error-text" style={{ padding: 12 }}>{treeError}</p>}
       {tree && (
         <ProjectTree
           tree={tree}
@@ -556,52 +486,35 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   );
 
   const editorContent = (
-    <div style={styles.center}>
+    <div className="editor-center">
       <div>
         {cacheWarning && (
-          <div style={styles.banner} role="alert">
+          <div className="editor-banner" role="alert">
             ⚠ {cacheWarning}
-            <button
-              type="button"
-              onClick={() => setCacheWarning(null)}
-              style={{ marginLeft: 8, background: "none", border: "none", cursor: "pointer", fontWeight: "bold" }}
-              aria-label={t("editor.dismiss_warning")}
-            >
-              ✕
-            </button>
+            <button type="button" onClick={() => setCacheWarning(null)} className="editor-banner-dismiss"
+              aria-label={t("editor.dismiss_warning")}>✕</button>
           </div>
         )}
         {activeFileId && (
-        <div style={styles.topBar}>
+        <div className="editor-topbar">
           <FormattingToolbar editor={editorInstance} />
-          <button
-            type="button"
-            style={styles.saveBtn}
-            onClick={handleSave}
-            disabled={saving || !activeFileId}
-          >
+          <button type="button" className="editor-save-btn" onClick={handleSave} disabled={saving || !activeFileId}>
             {saving ? t("editor.saving") : t("editor.save")}
           </button>
         </div>
         )}
       </div>
 
-      <div style={styles.editorArea}>
-        {!activeFileId && (
-          <div style={styles.placeholder}>{t("editor.select_file_placeholder")}</div>
-        )}
-        {fileLoading && <p style={{ color: "#888" }}>{t("editor.loading_file")}</p>}
-        {fileError && <p style={{ color: "red" }}>{fileError}</p>}
+      <div className="editor-area">
+        {!activeFileId && <div className="editor-placeholder">{t("editor.select_file_placeholder")}</div>}
+        {fileLoading && <p className="loading-text">{t("editor.loading_file")}</p>}
+        {fileError && <p className="error-text">{fileError}</p>}
         {activeFileId && !fileLoading && !fileError && fileContent != null && (
-          <TipTapEditor
-            content={fileContent}
-            onUpdate={handleEditorUpdate}
-            editorRef={setEditorInstance}
-          />
+          <TipTapEditor content={fileContent} onUpdate={handleEditorUpdate} editorRef={setEditorInstance} />
         )}
       </div>
 
-      <div style={{ ...styles.statusBar, visibility: activeFileId ? "visible" : "hidden" }} aria-live="polite">
+      <div className="editor-status-bar" style={{ visibility: activeFileId ? "visible" : "hidden" }} aria-live="polite">
         <span>{wordCount.toLocaleString()} {t("editor.words")}</span>
         <span>{charCount.toLocaleString()} {t("editor.characters")}</span>
         {selectedType === "text" && selectedItem?.target_word_count > 0 && (() => {
@@ -611,9 +524,9 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
           const g = pct < 50 ? Math.round(80 + pct * 3) : 200;
           const barColor = `rgb(${r},${g},60)`;
           return (
-            <span style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
-              <span style={{ width: 100, height: 8, background: "#ddd", borderRadius: 4, overflow: "hidden" }}>
-                <span style={{ display: "block", width: `${pct}%`, height: "100%", background: barColor, borderRadius: 4, transition: "width 0.3s" }} />
+            <span className="editor-wc-bar">
+              <span className="editor-wc-track">
+                <span className="editor-wc-fill" style={{ width: `${pct}%`, background: barColor }} />
               </span>
               <span>{pct}%</span>
               <span>{wordCount.toLocaleString()}/{target.toLocaleString()}</span>
@@ -625,59 +538,26 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   );
 
   const propertiesContent = (
-    <div style={{ overflowY: "auto", background: "#fafafa", ...(isMobile ? { flex: 1 } : { width: 260, minWidth: 260, borderLeft: "1px solid #ddd" }) }}>
-      {selectedItem && (
-        <PropertiesPanel
-          item={selectedItem}
-          type={selectedType}
-          onSave={handleSaveProperties}
-        />
-      )}
-      {activeFileId && (
-        <VersionHistoryPanel fileId={activeFileId} onRevert={handleRevert} />
-      )}
+    <div className={isMobile ? "editor-right-panel--mobile" : "editor-right-panel"}>
+      {selectedItem && <PropertiesPanel item={selectedItem} type={selectedType} onSave={handleSaveProperties} />}
+      {activeFileId && <VersionHistoryPanel fileId={activeFileId} onRevert={handleRevert} />}
     </div>
   );
 
-  // ── Mobile layout: one panel at a time with tab bar ────────
+  // ── Mobile layout ──────────────────────────────────────────
   if (isMobile) {
-    const tabBtn = (panel, label) => ({
-      flex: 1,
-      padding: "8px 0",
-      border: "none",
-      borderBottom: mobilePanel === panel ? "2px solid #4a90d9" : "2px solid transparent",
-      background: mobilePanel === panel ? "#fff" : "#f5f5f5",
-      color: mobilePanel === panel ? "#4a90d9" : "#666",
-      fontWeight: mobilePanel === panel ? 600 : 400,
-      fontSize: 13,
-      cursor: "pointer",
-    });
-
     return (
-      <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+      <div className="editor-mobile-wrapper">
         <TopBar projectTitle={tree?.title} navSection={navSection} onMenuToggle={() => setDrawerOpen(true)} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} />
-        <MobileDrawer
-          open={drawerOpen}
-          active={navSection}
-          onChange={setNavSection}
-          onDashboard={onDashboard}
-          onSettings={() => {}}
-          onLogout={onLogout}
-          onClose={() => setDrawerOpen(false)}
-        />
-        <div style={{ display: "flex", borderBottom: "1px solid #ddd", flexShrink: 0 }}>
-          <button type="button" style={tabBtn("tree", "Tree")} onClick={() => setMobilePanel("tree")}>
-            📁 Tree
-          </button>
-          <button type="button" style={tabBtn("editor", "Editor")} onClick={() => setMobilePanel("editor")}>
-            ✏️ Editor
-          </button>
-          <button type="button" style={tabBtn("properties", "Info")} onClick={() => setMobilePanel("properties")}>
-            ℹ️ Info
-          </button>
+        <MobileDrawer open={drawerOpen} active={navSection} onChange={setNavSection}
+          onDashboard={onDashboard} onSettings={() => {}} onLogout={onLogout} onClose={() => setDrawerOpen(false)} />
+        <div className="editor-mobile-tabs">
+          <button type="button" className={`editor-mobile-tab${mobilePanel === "tree" ? " editor-mobile-tab--active" : ""}`} onClick={() => setMobilePanel("tree")}>📁 Tree</button>
+          <button type="button" className={`editor-mobile-tab${mobilePanel === "editor" ? " editor-mobile-tab--active" : ""}`} onClick={() => setMobilePanel("editor")}>✏️ Editor</button>
+          <button type="button" className={`editor-mobile-tab${mobilePanel === "properties" ? " editor-mobile-tab--active" : ""}`} onClick={() => setMobilePanel("properties")}>ℹ️ Info</button>
         </div>
-        <div style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-          {mobilePanel === "tree" && <div style={{ flex: 1, overflowY: "auto" }}>{sidebarContent}</div>}
+        <div className="editor-mobile-body">
+          {mobilePanel === "tree" && <div className="editor-mobile-tree">{sidebarContent}</div>}
           {mobilePanel === "editor" && editorContent}
           {mobilePanel === "properties" && propertiesContent}
         </div>
@@ -685,13 +565,13 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
     );
   }
 
-  // ── Desktop layout: nav sidebar + three columns ────────────
+  // ── Desktop layout ─────────────────────────────────────────
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+    <div className="editor-desktop-wrapper">
       <TopBar projectTitle={tree?.title} navSection={navSection} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} />
-      <div style={{ ...styles.container, flex: 1 }}>
+      <div className="editor-desktop-body">
         <NavSidebar active={navSection} onChange={setNavSection} onDashboard={onDashboard} onSettings={() => {}} onLogout={onLogout} />
-        <div style={styles.sidebar}>{sidebarContent}</div>
+        <div className="editor-sidebar">{sidebarContent}</div>
         {editorContent}
         {(selectedItem || activeFileId) && propertiesContent}
       </div>

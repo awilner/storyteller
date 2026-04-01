@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { oidcCallback, oidcLink } from "./api";
 import { useI18n } from "./I18nContext";
+import "./OIDCCallback.css";
 
 export default function OIDCCallback({ onAuth }) {
   const t = useI18n();
@@ -12,15 +13,9 @@ export default function OIDCCallback({ onAuth }) {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
     const state = params.get("state");
-
-    if (!code) {
-      setError(t("oidc.missing_auth_code"));
-      return;
-    }
-
+    if (!code) { setError(t("oidc.missing_auth_code")); return; }
     const mode = sessionStorage.getItem("oidc_mode") || "login";
     sessionStorage.removeItem("oidc_mode");
-
     const handle = async () => {
       try {
         if (mode === "link") {
@@ -31,27 +26,19 @@ export default function OIDCCallback({ onAuth }) {
           window.history.replaceState({}, "", "/");
           onAuthRef.current(user);
         }
-      } catch (err) {
-        setError(err.message);
-      }
+      } catch (err) { setError(err.message); }
     };
-
     handle();
-  }, []); // Run once on mount — onAuth accessed via ref
+  }, []);
 
   if (error) {
     return (
-      <div style={{ maxWidth: 400, margin: "4rem auto", fontFamily: "system-ui" }}>
+      <div className="oidc-callback-container">
         <h2>{t("oidc.error_title")}</h2>
-        <p style={{ color: "red" }}>{error}</p>
+        <p className="error-text">{error}</p>
         <a href="/">{t("oidc.back_to_login")}</a>
       </div>
     );
   }
-
-  return (
-    <p style={{ textAlign: "center", marginTop: "4rem" }}>
-      {t("oidc.completing_sign_in")}
-    </p>
-  );
+  return <p className="oidc-completing">{t("oidc.completing_sign_in")}</p>;
 }

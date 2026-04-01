@@ -1,0 +1,34 @@
+.versions-wrapper { border-bottom: 1px solid #ddd; }
+.versions-toggle {
+  width: 100%;
+  padding: 8px 12px;
+  background: #f5f5f5;
+  border: none;
+  border-bottom: 1px solid #ddd;
+  cursor: pointer;
+  text-align: left;
+  font-weight: bold;
+}
+.versions-body { padding: 8px; }
+.versions-list { list-style: none; padding: 0; margin: 0; }
+.versions-item {
+  padding: 6px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  margin-bottom: 2px;
+  font-size: 13px;
+}
+.versions-item:hover { background: #f0f0f0; }
+.versions-item--selected { background: #e0edff; }
+.versions-meta { color: #888; font-size: 12px; }
+.versions-preview {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  padding: 8px;
+  border-radius: 4px;
+  max-height: 300px;
+  overflow: auto;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

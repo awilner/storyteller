@@ -1,0 +1,10 @@
+.account-section { margin-bottom: 2rem; }
+.account-oidc-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+}
+.account-oidc-list { padding: 0; list-style: none; }

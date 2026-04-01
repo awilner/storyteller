@@ -1,0 +1,57 @@
+.app-editor-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.dashboard-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.project-list {
+  list-style: none;
+  padding: 0;
+}
+
+.project-edit-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.project-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.project-description {
+  margin: 4px 0 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.project-card-buttons {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.textarea-small {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 13px;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.input-edit {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+}

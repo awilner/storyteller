@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { fetchVersions, fetchVersion, revertVersion } from "./api";
 import { useI18n } from "./I18nContext";
+import "./VersionHistoryPanel.css";
 
 export default function VersionHistoryPanel({ fileId, onRevert }) {
   const t = useI18n();
@@ -58,81 +59,35 @@ export default function VersionHistoryPanel({ fileId, onRevert }) {
   };
 
   return (
-    <div style={{ borderBottom: "1px solid #ddd" }}>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        style={{
-          width: "100%",
-          padding: "8px 12px",
-          background: "#f5f5f5",
-          border: "none",
-          borderBottom: "1px solid #ddd",
-          cursor: "pointer",
-          textAlign: "left",
-          fontWeight: "bold",
-        }}
-      >
+    <div className="versions-wrapper">
+      <button className="versions-toggle" onClick={() => setOpen((o) => !o)}>
         {open ? "▾" : "▸"} {t("versions.title")}
       </button>
-
       {open && (
-        <div style={{ padding: 8 }}>
-          {loading && <p style={{ color: "#888" }}>{t("versions.loading")}</p>}
-          {error && <p style={{ color: "red" }}>{error}</p>}
+        <div className="versions-body">
+          {loading && <p className="loading-text">{t("versions.loading")}</p>}
+          {error && <p className="error-text">{error}</p>}
           {!loading && !error && versions.length === 0 && (
-            <p style={{ color: "#888" }}>{t("versions.no_versions")}</p>
+            <p className="muted-text">{t("versions.no_versions")}</p>
           )}
-          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          <ul className="versions-list">
             {versions.map((v) => (
-              <li
-                key={v.id}
-                onClick={() => handleSelectVersion(v)}
-                style={{
-                  padding: "6px 8px",
-                  cursor: "pointer",
-                  background: selectedVersion?.id === v.id ? "#e0edff" : "transparent",
-                  borderRadius: 4,
-                  marginBottom: 2,
-                  fontSize: 13,
-                }}
-              >
+              <li key={v.id} onClick={() => handleSelectVersion(v)}
+                className={`versions-item${selectedVersion?.id === v.id ? " versions-item--selected" : ""}`}>
                 <div>{new Date(v.created_at).toLocaleString()}</div>
-                <div style={{ color: "#888", fontSize: 12 }}>{v.content_length} {t("versions.chars")}</div>
+                <div className="versions-meta">{v.content_length} {t("versions.chars")}</div>
               </li>
             ))}
           </ul>
-
           {selectedVersion && (
-            <div style={{ marginTop: 8 }}>
-              <button
-                onClick={handleRevert}
-                disabled={reverting}
-                style={{
-                  padding: "4px 10px",
-                  cursor: reverting ? "not-allowed" : "pointer",
-                  marginBottom: 8,
-                }}
-              >
+            <div className="mt-8">
+              <button onClick={handleRevert} disabled={reverting} className="btn btn-small mb-8">
                 {reverting ? t("versions.reverting") : t("versions.revert")}
               </button>
               {previewLoading ? (
-                <p style={{ color: "#888" }}>{t("versions.loading_preview")}</p>
+                <p className="loading-text">{t("versions.loading_preview")}</p>
               ) : (
-                <pre
-                  style={{
-                    background: "#f9f9f9",
-                    border: "1px solid #ddd",
-                    padding: 8,
-                    borderRadius: 4,
-                    maxHeight: 300,
-                    overflow: "auto",
-                    fontSize: 12,
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                  }}
-                >
-                  {previewContent}
-                </pre>
+                <pre className="versions-preview">{previewContent}</pre>
               )}
             </div>
           )}

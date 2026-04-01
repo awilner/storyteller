@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useI18n } from "./I18nContext";
+import "./FormattingToolbar.css";
 
 const Icon = ({ d, size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -93,22 +94,6 @@ export default function FormattingToolbar({ editor }) {
 
   if (!editor || editor.isDestroyed) return null;
 
-  const btnStyle = (active) => ({
-    padding: "4px 6px",
-    border: "1px solid " + (active ? "#333" : "#ccc"),
-    borderRadius: 4,
-    cursor: "pointer",
-    background: active ? "#333" : "#f5f5f5",
-    color: active ? "#fff" : "#333",
-    fontSize: 13,
-    lineHeight: 1,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    minWidth: 28,
-    height: 28,
-  });
-
   const handleLink = () => {
     const url = window.prompt(t("toolbar.enter_url"));
     if (url) {
@@ -132,12 +117,12 @@ export default function FormattingToolbar({ editor }) {
   ];
 
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 3, padding: "6px 0" }}>
+    <div className="formatting-toolbar">
       {buttons.map((btn) => (
         <button
           key={btn.key}
           type="button"
-          style={btnStyle(btn.active)}
+          className={`fmt-btn${btn.active ? " fmt-btn--active" : ""}`}
           onClick={btn.action}
           title={btn.label}
           aria-label={btn.label}

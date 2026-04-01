@@ -1,0 +1,27 @@
+.formatting-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 6px 0;
+}
+
+.fmt-btn {
+  padding: 4px 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  background: #f5f5f5;
+  color: #333;
+  font-size: 13px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+}
+.fmt-btn--active {
+  border-color: #333;
+  background: #333;
+  color: #fff;
+}
