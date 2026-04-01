@@ -83,7 +83,7 @@ const styles = {
   },
 };
 
-export default function EditorView({ projectId, initialFileId, onLogout, onDashboard }) {
+export default function EditorView({ projectId, initialFileId, onLogout, onDashboard, username, onAccount, onSettings }) {
   const t = useI18n();
   const isMobile = useIsMobile();
   const [mobilePanel, setMobilePanel] = useState("tree"); // "tree" | "editor" | "properties"
@@ -655,7 +655,7 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
 
     return (
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
-        <TopBar projectTitle={tree?.title} navSection={navSection} onMenuToggle={() => setDrawerOpen(true)} />
+        <TopBar projectTitle={tree?.title} navSection={navSection} onMenuToggle={() => setDrawerOpen(true)} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} />
         <MobileDrawer
           open={drawerOpen}
           active={navSection}
@@ -688,7 +688,7 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   // ── Desktop layout: nav sidebar + three columns ────────────
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
-      <TopBar projectTitle={tree?.title} navSection={navSection} />
+      <TopBar projectTitle={tree?.title} navSection={navSection} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} />
       <div style={{ ...styles.container, flex: 1 }}>
         <NavSidebar active={navSection} onChange={setNavSection} onDashboard={onDashboard} onSettings={() => {}} onLogout={onLogout} />
         <div style={styles.sidebar}>{sidebarContent}</div>

@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from "react";
 import { useI18n } from "./I18nContext";
 import logoSrc from "../resources/Storyteller.svg";
 
@@ -44,8 +45,58 @@ const contextStyle = {
   minWidth: 0,
 };
 
-export default function TopBar({ projectTitle, navSection, onMenuToggle }) {
+const userBtnStyle = {
+  background: "none",
+  border: "none",
+  fontSize: 13,
+  color: "#555",
+  cursor: "pointer",
+  padding: "4px 8px",
+  borderRadius: 4,
+};
+
+const dropdownStyle = {
+  position: "absolute",
+  top: "100%",
+  right: 0,
+  marginTop: 4,
+  background: "#fff",
+  border: "1px solid #ddd",
+  borderRadius: 6,
+  boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
+  minWidth: 150,
+  zIndex: 100,
+  overflow: "hidden",
+};
+
+const dropdownItemStyle = {
+  display: "block",
+  width: "100%",
+  padding: "10px 14px",
+  border: "none",
+  background: "none",
+  textAlign: "left",
+  fontSize: 13,
+  color: "#333",
+  cursor: "pointer",
+};
+
+export default function TopBar({ projectTitle, navSection, onMenuToggle, onHome, username, onAccount, onSettings, onLogout }) {
   const t = useI18n();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [dropdownOpen]);
 
   const sectionLabel = navSection && navLabelKeys[navSection]
     ? t(navLabelKeys[navSection]) || navSection
@@ -63,8 +114,8 @@ export default function TopBar({ projectTitle, navSection, onMenuToggle }) {
           ☰
         </button>
       )}
-      <img src={logoSrc} alt="" style={{ height: 24 }} />
-      <span style={logoStyle}>Storyteller</span>
+      <img src={logoSrc} alt="" style={{ height: 24, cursor: onHome ? "pointer" : "default" }} onClick={onHome || undefined} />
+      <span style={{ ...logoStyle, cursor: onHome ? "pointer" : "default" }} onClick={onHome || undefined}>Storyteller</span>
       {projectTitle && (
         <>
           <span style={separatorStyle}>/</span>
@@ -75,6 +126,54 @@ export default function TopBar({ projectTitle, navSection, onMenuToggle }) {
         <>
           <span style={separatorStyle}>/</span>
           <span style={contextStyle}>{sectionLabel}</span>
+        </>
+      )}
+
+      {username && (
+        <>
+          <div style={{ flex: 1 }} />
+          <div ref={dropdownRef} style={{ position: "relative" }}>
+            <button
+              type="button"
+              style={userBtnStyle}
+              onClick={() => setDropdownOpen((v) => !v)}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "#f0f0f0"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+            >
+              {username} ▾
+            </button>
+            {dropdownOpen && (
+              <div style={dropdownStyle}>
+                {onAccount && (
+                  <button type="button" style={dropdownItemStyle}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "#f5f5f5"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+                    onClick={() => { setDropdownOpen(false); onAccount(); }}>
+                    {t("topbar.account") || "Account"}
+                  </button>
+                )}
+                {onSettings && (
+                  <button type="button" style={dropdownItemStyle}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "#f5f5f5"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+                    onClick={() => { setDropdownOpen(false); onSettings(); }}>
+                    {t("topbar.settings") || "Settings"}
+                  </button>
+                )}
+                {onLogout && (
+                  <>
+                    <div style={{ borderTop: "1px solid #eee" }} />
+                    <button type="button" style={{ ...dropdownItemStyle, color: "#c44" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "#f5f5f5"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+                      onClick={() => { setDropdownOpen(false); onLogout(); }}>
+                      {t("topbar.logout") || "Log out"}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </>
       )}
     </div>

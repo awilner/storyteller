@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
-import { fetchMe, fetchProjects, createProject, deleteProject, updateProject, logout, oidcLogin, oidcUnlink, fetchConfig } from "./api";
+import { fetchMe, fetchProjects, createProject, deleteProject, updateProject, logout, fetchConfig } from "./api";
 import AuthForm from "./AuthForm";
 import EditorView from "./EditorView";
 import ImportModal from "./ImportModal";
 import TopBar from "./TopBar";
+import AccountPage from "./AccountPage";
+import SettingsPage from "./SettingsPage";
 import OIDCCallback from "./OIDCCallback";
 
 export default function App() {
@@ -38,6 +40,12 @@ export default function App() {
   const [editingProjectId, setEditingProjectId] = useState(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [page, setPage] = useState(() => {
+    const p = window.location.pathname;
+    if (p === "/account") return "account";
+    if (p === "/settings") return "settings";
+    return "dashboard";
+  });
 
   useEffect(() => {
     if (isOidcCallback) {
@@ -55,22 +63,38 @@ export default function App() {
 
   // Sync URL with navigation state
   useEffect(() => {
+    if (isOidcCallback) return;
+    let target;
     if (selectedProjectId) {
-      if (!window.location.pathname.startsWith(`/projects/${selectedProjectId}`)) {
-        window.history.pushState(null, "", `/projects/${selectedProjectId}`);
-      }
-    } else if (!isOidcCallback) {
-      if (window.location.pathname !== "/") {
-        window.history.pushState(null, "", "/");
-      }
+      target = `/projects/${selectedProjectId}`;
+      // Don't overwrite file/folder sub-paths set by EditorView
+      if (window.location.pathname.startsWith(target)) return;
+    } else if (page === "account") {
+      target = "/account";
+    } else if (page === "settings") {
+      target = "/settings";
+    } else {
+      target = "/";
     }
-  }, [selectedProjectId, isOidcCallback]);
+    if (window.location.pathname !== target) {
+      window.history.pushState(null, "", target);
+    }
+  }, [selectedProjectId, page, isOidcCallback]);
 
   // Handle browser back/forward
   useEffect(() => {
     const onPopState = () => {
-      const m = window.location.pathname.match(/^\/projects\/(\d+)/);
-      setSelectedProjectId(m ? Number(m[1]) : null);
+      const p = window.location.pathname;
+      const m = p.match(/^\/projects\/(\d+)/);
+      if (m) {
+        setSelectedProjectId(Number(m[1]));
+        setPage("dashboard");
+      } else {
+        setSelectedProjectId(null);
+        if (p === "/account") setPage("account");
+        else if (p === "/settings") setPage("settings");
+        else setPage("dashboard");
+      }
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -143,26 +167,6 @@ export default function App() {
     }
   };
 
-  const handleLinkOIDC = async () => {
-    try {
-      sessionStorage.setItem("oidc_mode", "link");
-      const { authorization_url } = await oidcLogin();
-      window.location.href = authorization_url;
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const handleUnlinkOIDC = async (identityId) => {
-    try {
-      await oidcUnlink(identityId);
-      const updated = await fetchMe();
-      setUser(updated);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
   if (loading) return <p style={{ textAlign: "center", marginTop: "2rem" }}>Loading…</p>;
 
   if (isOidcCallback) return <OIDCCallback onAuth={(u) => { setUser(u); setIsOidcCallback(false); }} />;
@@ -179,23 +183,43 @@ export default function App() {
           initialFolderId={initialFolderId}
           onLogout={handleLogout}
           onDashboard={() => setSelectedProjectId(null)}
+          username={user.username}
+          onAccount={() => { setSelectedProjectId(null); setPage("account"); }}
+          onSettings={() => { setSelectedProjectId(null); setPage("settings"); }}
         />
       </div>
+    );
+  }
+
+  // Account / Settings pages
+  if (page === "account") {
+    return (
+      <AccountPage
+        user={user}
+        oidcEnabled={oidcEnabled}
+        onUserUpdate={setUser}
+        onBack={() => setPage("dashboard")}
+        onLogout={handleLogout}
+        onSettings={() => setPage("settings")}
+      />
+    );
+  }
+  if (page === "settings") {
+    return (
+      <SettingsPage
+        user={user}
+        onBack={() => setPage("dashboard")}
+        onLogout={handleLogout}
+        onAccount={() => setPage("account")}
+      />
     );
   }
 
   // Dashboard view
   return (
     <div>
-      <TopBar />
+      <TopBar username={user.username} onAccount={() => setPage("account")} onSettings={() => setPage("settings")} onLogout={handleLogout} />
       <div style={{ maxWidth: 600, margin: "2rem auto", padding: "0 16px", fontFamily: "system-ui" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h2 style={{ margin: "0.5rem 0" }}>Your Projects</h2>
-          <span>
-            {user.username}{" "}
-            <button type="button" onClick={handleLogout}>Log out</button>
-          </span>
-        </div>
         {error && <p style={{ color: "red" }}>{error}</p>}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -335,31 +359,6 @@ export default function App() {
             </li>
           ))}
         </ul>
-      )}
-
-      {oidcEnabled && (
-        <div style={{ marginTop: "2rem", borderTop: "1px solid #ccc", paddingTop: "1rem" }}>
-          <h3>Linked OIDC Identities</h3>
-          {user.oidc_identities?.length > 0 ? (
-            <ul>
-              {user.oidc_identities.map((id) => (
-                <li key={id.id}>
-                  {id.provider} ({id.email || "no email"})
-                  <button
-                    onClick={() => handleUnlinkOIDC(id.id)}
-                    style={{ marginLeft: "0.5rem" }}
-                    aria-label={`Unlink ${id.provider}`}
-                  >
-                    Unlink
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>No OIDC identities linked.</p>
-          )}
-          <button type="button" onClick={handleLinkOIDC}>Link OIDC Account</button>
-        </div>
       )}
 
       {showImportModal && (

@@ -114,6 +114,26 @@ def _get_ui_strings():
         "nav.dashboard": _("Dashboard"),
         "nav.settings": _("Settings"),
         "nav.logout": _("Log out"),
+
+        # Top bar user menu
+        "topbar.account": _("Account"),
+        "topbar.settings": _("Settings"),
+        "topbar.logout": _("Log out"),
+
+        # Account page
+        "account.title": _("Account"),
+        "account.change_password": _("Change Password"),
+        "account.current_password": _("Current password"),
+        "account.new_password": _("New password"),
+        "account.confirm_password": _("Confirm new password"),
+        "account.change_password_btn": _("Change Password"),
+        "account.password_changed": _("Password changed successfully."),
+        "account.passwords_mismatch": _("Passwords do not match."),
+        "account.oidc_identities": _("Linked OIDC Identities"),
+
+        # Settings page
+        "settings.title": _("Settings"),
+        "settings.placeholder": _("Settings will be available here in a future update."),
         "versions.loading": _("Loading versions…"),
         "versions.no_versions": _("No versions yet."),
         "versions.chars": _("chars"),

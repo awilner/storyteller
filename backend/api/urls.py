@@ -1,6 +1,7 @@
 from django.urls import path
 from .translations import translations_view
 from .views import (
+    change_password_view,
     config_view,
     file_cache_view,
     file_detail_view,
@@ -36,6 +37,7 @@ urlpatterns = [
     path("auth/register/", register_view, name="register"),
     path("auth/login/", login_view, name="login"),
     path("auth/logout/", logout_view, name="logout"),
+    path("auth/change-password/", change_password_view, name="change-password"),
     path("auth/me/", me_view, name="me"),
     path("auth/oidc/login/", oidc_login_view, name="oidc-login"),
     path("auth/oidc/callback/", oidc_callback_view, name="oidc-callback"),
