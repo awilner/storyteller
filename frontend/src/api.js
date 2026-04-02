@@ -28,6 +28,16 @@ async function request(url, options = {}) {
 export const fetchConfig = () =>
   request(`${API_BASE}/config/`);
 
+// User settings
+export const fetchUserSettings = () =>
+  request(`${API_BASE}/auth/settings/`);
+
+export const updateUserSettings = (data) =>
+  request(`${API_BASE}/auth/settings/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+
 // Translations
 export const fetchTranslations = () =>
   request(`${API_BASE}/i18n/strings/`);

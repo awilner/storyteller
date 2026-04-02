@@ -14,6 +14,11 @@ class Project(models.Model):
     )
     title = models.CharField(max_length=300)
     description = models.TextField(blank=True, default="")
+    settings = models.JSONField(
+        blank=True,
+        default=dict,
+        help_text="Project-level settings (e.g. editor_font).",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -160,3 +165,24 @@ class OIDCIdentity(models.Model):
 
     def __str__(self):
         return f"{self.provider}:{self.sub} → {self.user}"
+
+
+class UserSettings(models.Model):
+    """Per-user application preferences."""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="app_settings",
+    )
+    preferences = models.JSONField(
+        blank=True,
+        default=dict,
+        help_text="User preferences (e.g. default_editor_font).",
+    )
+
+    class Meta:
+        verbose_name_plural = "User settings"
+
+    def __str__(self):
+        return f"Settings for {self.user}"

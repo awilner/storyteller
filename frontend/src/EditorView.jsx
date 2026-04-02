@@ -1,23 +1,36 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useI18n } from "./I18nContext";
+import { useFont } from "./FontContext";
 import useIsMobile from "./useIsMobile";
 import NavSidebar, { MobileDrawer } from "./NavSidebar";
 import TopBar from "./TopBar";
 import ProjectTree from "./ProjectTree";
 import TipTapEditor from "./TipTapEditor";
 import FormattingToolbar from "./FormattingToolbar";
+import FolderView from "./FolderView";
 import VersionHistoryPanel from "./VersionHistoryPanel";
 import PropertiesPanel from "./PropertiesPanel";
+import OutlinePage from "./OutlinePage";
+import NotesPage from "./NotesPage";
+import ProjectSettingsPage from "./ProjectSettingsPage";
 import { fetchProjectTree, fetchFile, saveDraftCache, createVersion, createFolder, deleteFolder, createText, deleteText, updateFolder, updateText, reorderTree } from "./api";
 import "./EditorView.css";
 
 const DEBOUNCE_MS = 2000;
+const VALID_SECTIONS = new Set(["editor", "outline", "characters", "locations", "notes", "project-settings"]);
+
+function parseSectionFromPath(projectId) {
+  const m = window.location.pathname.match(new RegExp(`^/projects/${projectId}/section/([\\w-]+)`));
+  if (m && VALID_SECTIONS.has(m[1])) return m[1];
+  return "editor";
+}
 
 export default function EditorView({ projectId, initialFileId, onLogout, onDashboard, username, onAccount, onSettings }) {
   const t = useI18n();
+  const { setProjectFont } = useFont();
   const isMobile = useIsMobile();
-  const [mobilePanel, setMobilePanel] = useState("tree"); // "tree" | "editor" | "properties"
-  const [navSection, setNavSection] = useState("editor");
+  const [mobilePanel, setMobilePanel] = useState("tree");
+  const [navSection, setNavSection] = useState(() => parseSectionFromPath(projectId));
   const [drawerOpen, setDrawerOpen] = useState(false); // "editor" | "outline" | "characters" | "locations" | "notes"
   const [tree, setTree] = useState(null);
   const [treeLoading, setTreeLoading] = useState(true);
@@ -36,6 +49,8 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   const [selectedType, setSelectedType] = useState(null); // "folder" | "text"
   const [wordCount, setWordCount] = useState(0);
   const [charCount, setCharCount] = useState(0);
+  const [folderWordCount, setFolderWordCount] = useState(0);
+  const [folderCharCount, setFolderCharCount] = useState(0);
   const draftRef = useRef(null);
   const debounceTimer = useRef(null);
   const activeFileRef = useRef(null);
@@ -49,16 +64,19 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
     activeFileRef.current = activeFileId;
   }, [activeFileId]);
 
-  // Push URL when user clicks a file or folder (skip on first render)
+  // Push URL when user navigates (skip on first render)
   const isFirstRender = useRef(true);
   useEffect(() => {
+    const base = `/projects/${projectId}`;
     let path;
-    if (activeFileId) {
-      path = `/projects/${projectId}/files/${activeFileId}`;
+    if (navSection !== "editor") {
+      path = `${base}/section/${navSection}`;
+    } else if (activeFileId) {
+      path = `${base}/files/${activeFileId}`;
     } else if (selectedType === "folder" && selectedItem?.id) {
-      path = `/projects/${projectId}/folders/${selectedItem.id}`;
+      path = `${base}/folders/${selectedItem.id}`;
     } else {
-      path = `/projects/${projectId}`;
+      path = base;
     }
     if (isFirstRender.current) {
       if (window.location.pathname !== path) {
@@ -70,12 +88,22 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
         window.history.pushState(null, "", path);
       }
     }
-  }, [activeFileId, selectedItem, selectedType, projectId]);
+  }, [activeFileId, selectedItem, selectedType, navSection, projectId]);
 
   // Browser back/forward — use refs to avoid dependency churn
   useEffect(() => {
     const onPopState = () => {
       if (!window.location.pathname.startsWith(`/projects/${projectId}`)) return;
+
+      // Check for section URL first
+      const sectionMatch = window.location.pathname.match(/^\/projects\/\d+\/section\/([\w-]+)/);
+      if (sectionMatch && VALID_SECTIONS.has(sectionMatch[1])) {
+        setNavSection(sectionMatch[1]);
+        return;
+      }
+
+      // Editor section — parse file/folder
+      setNavSection("editor");
       const fileMatch = window.location.pathname.match(/^\/projects\/\d+\/files\/(\d+)/);
       const folderMatch = window.location.pathname.match(/^\/projects\/\d+\/folders\/(\d+)/);
       if (fileMatch) {
@@ -87,7 +115,6 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
         }
         draftRef.current = null;
         setActiveFileId(newFileId);
-        // selectedItem/type will be set by the [activeFileId, tree] effect
       } else if (folderMatch) {
         const folderId = Number(folderMatch[1]);
         if (debounceTimer.current) {
@@ -105,7 +132,6 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
           }
         }
       } else {
-        // Just /projects/:id — clear everything
         if (debounceTimer.current) {
           clearTimeout(debounceTimer.current);
           debounceTimer.current = null;
@@ -178,7 +204,10 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
     setTreeLoading(true);
     setTreeError(null);
     fetchProjectTree(projectId)
-      .then(setTree)
+      .then((data) => {
+        setTree(data);
+        setProjectFont(data.settings?.editor_font || "");
+      })
       .catch((err) => setTreeError(err.message))
       .finally(() => setTreeLoading(false));
   }, [projectId]);
@@ -451,6 +480,7 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   useEffect(() => {
     return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      setProjectFont("");
     };
   }, []);
 
@@ -506,7 +536,13 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
       </div>
 
       <div className="editor-area">
-        {!activeFileId && <div className="editor-placeholder">{t("editor.select_file_placeholder")}</div>}
+        {!activeFileId && selectedType === "folder" && selectedItem && (
+          <FolderView folder={selectedItem} onSelectFile={handleSelectFile}
+            onCounts={({ wordCount: wc, charCount: cc }) => { setFolderWordCount(wc); setFolderCharCount(cc); }} />
+        )}
+        {!activeFileId && selectedType !== "folder" && (
+          <div className="editor-placeholder">{t("editor.select_file_placeholder")}</div>
+        )}
         {fileLoading && <p className="loading-text">{t("editor.loading_file")}</p>}
         {fileError && <p className="error-text">{fileError}</p>}
         {activeFileId && !fileLoading && !fileError && fileContent != null && (
@@ -514,26 +550,35 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
         )}
       </div>
 
-      <div className="editor-status-bar" style={{ visibility: activeFileId ? "visible" : "hidden" }} aria-live="polite">
-        <span>{wordCount.toLocaleString()} {t("editor.words")}</span>
-        <span>{charCount.toLocaleString()} {t("editor.characters")}</span>
-        {selectedType === "text" && selectedItem?.target_word_count > 0 && (() => {
-          const target = selectedItem.target_word_count;
-          const pct = Math.min(Math.round((wordCount / target) * 100), 100);
-          const r = pct < 50 ? 220 : Math.round(220 - (pct - 50) * 4);
-          const g = pct < 50 ? Math.round(80 + pct * 3) : 200;
-          const barColor = `rgb(${r},${g},60)`;
-          return (
-            <span className="editor-wc-bar">
-              <span className="editor-wc-track">
-                <span className="editor-wc-fill" style={{ width: `${pct}%`, background: barColor }} />
-              </span>
-              <span>{pct}%</span>
-              <span>{wordCount.toLocaleString()}/{target.toLocaleString()}</span>
-            </span>
-          );
-        })()}
-      </div>
+      {(() => {
+        const showFile = activeFileId;
+        const showFolder = !activeFileId && selectedType === "folder" && selectedItem;
+        if (!showFile && !showFolder) return <div className="editor-status-bar" style={{ visibility: "hidden" }} />;
+        const wc = showFile ? wordCount : folderWordCount;
+        const cc = showFile ? charCount : folderCharCount;
+        const target = selectedItem?.target_word_count;
+        return (
+          <div className="editor-status-bar" aria-live="polite">
+            <span>{wc.toLocaleString()} {t("editor.words")}</span>
+            <span>{cc.toLocaleString()} {t("editor.characters")}</span>
+            {target > 0 && (() => {
+              const pct = Math.min(Math.round((wc / target) * 100), 100);
+              const r = pct < 50 ? 220 : Math.round(220 - (pct - 50) * 4);
+              const g = pct < 50 ? Math.round(80 + pct * 3) : 200;
+              const barColor = `rgb(${r},${g},60)`;
+              return (
+                <span className="editor-wc-bar">
+                  <span className="editor-wc-track">
+                    <span className="editor-wc-fill" style={{ width: `${pct}%`, background: barColor }} />
+                  </span>
+                  <span>{pct}%</span>
+                  <span>{wc.toLocaleString()}/{target.toLocaleString()}</span>
+                </span>
+              );
+            })()}
+          </div>
+        );
+      })()}
     </div>
   );
 
@@ -544,23 +589,41 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
     </div>
   );
 
+  // Sections that use the tree+editor layout
+  const isTreeSection = navSection === "editor" || navSection === "characters" || navSection === "locations";
+
+  // Placeholder page for non-tree sections
+  const handleProjectSettingsChange = useCallback((newSettings) => {
+    setTree((prev) => prev ? { ...prev, settings: newSettings } : prev);
+  }, []);
+
+  const sectionPage = navSection === "outline" ? <OutlinePage />
+    : navSection === "notes" ? <NotesPage />
+    : navSection === "project-settings" ? <ProjectSettingsPage projectId={projectId} projectSettings={tree?.settings} onSettingsChange={handleProjectSettingsChange} />
+    : null;
+
   // ── Mobile layout ──────────────────────────────────────────
   if (isMobile) {
     return (
       <div className="editor-mobile-wrapper">
         <TopBar projectTitle={tree?.title} navSection={navSection} onMenuToggle={() => setDrawerOpen(true)} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} />
-        <MobileDrawer open={drawerOpen} active={navSection} onChange={setNavSection}
-          onDashboard={onDashboard} onSettings={() => {}} onLogout={onLogout} onClose={() => setDrawerOpen(false)} />
-        <div className="editor-mobile-tabs">
-          <button type="button" className={`editor-mobile-tab${mobilePanel === "tree" ? " editor-mobile-tab--active" : ""}`} onClick={() => setMobilePanel("tree")}>📁 Tree</button>
-          <button type="button" className={`editor-mobile-tab${mobilePanel === "editor" ? " editor-mobile-tab--active" : ""}`} onClick={() => setMobilePanel("editor")}>✏️ Editor</button>
-          <button type="button" className={`editor-mobile-tab${mobilePanel === "properties" ? " editor-mobile-tab--active" : ""}`} onClick={() => setMobilePanel("properties")}>ℹ️ Info</button>
-        </div>
-        <div className="editor-mobile-body">
-          {mobilePanel === "tree" && <div className="editor-mobile-tree">{sidebarContent}</div>}
-          {mobilePanel === "editor" && editorContent}
-          {mobilePanel === "properties" && propertiesContent}
-        </div>
+        <MobileDrawer open={drawerOpen} active={navSection} onChange={setNavSection} onClose={() => setDrawerOpen(false)} />
+        {isTreeSection ? (
+          <>
+            <div className="editor-mobile-tabs">
+              <button type="button" className={`editor-mobile-tab${mobilePanel === "tree" ? " editor-mobile-tab--active" : ""}`} onClick={() => setMobilePanel("tree")}>📁 Tree</button>
+              <button type="button" className={`editor-mobile-tab${mobilePanel === "editor" ? " editor-mobile-tab--active" : ""}`} onClick={() => setMobilePanel("editor")}>✏️ Editor</button>
+              <button type="button" className={`editor-mobile-tab${mobilePanel === "properties" ? " editor-mobile-tab--active" : ""}`} onClick={() => setMobilePanel("properties")}>ℹ️ Info</button>
+            </div>
+            <div className="editor-mobile-body">
+              {mobilePanel === "tree" && <div className="editor-mobile-tree">{sidebarContent}</div>}
+              {mobilePanel === "editor" && editorContent}
+              {mobilePanel === "properties" && propertiesContent}
+            </div>
+          </>
+        ) : (
+          <div className="editor-mobile-body">{sectionPage}</div>
+        )}
       </div>
     );
   }
@@ -570,10 +633,16 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
     <div className="editor-desktop-wrapper">
       <TopBar projectTitle={tree?.title} navSection={navSection} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} />
       <div className="editor-desktop-body">
-        <NavSidebar active={navSection} onChange={setNavSection} onDashboard={onDashboard} onSettings={() => {}} onLogout={onLogout} />
-        <div className="editor-sidebar">{sidebarContent}</div>
-        {editorContent}
-        {(selectedItem || activeFileId) && propertiesContent}
+        <NavSidebar active={navSection} onChange={setNavSection} />
+        {isTreeSection ? (
+          <>
+            <div className="editor-sidebar">{sidebarContent}</div>
+            {editorContent}
+            {(selectedItem || activeFileId) && propertiesContent}
+          </>
+        ) : (
+          <div style={{ flex: 1, overflowY: "auto" }}>{sectionPage}</div>
+        )}
       </div>
     </div>
   );

@@ -26,6 +26,7 @@ from .views import (
     ywriter_import_view,
     text_create_view,
     text_detail_view,
+    user_settings_view,
 )
 
 urlpatterns = [
@@ -38,6 +39,7 @@ urlpatterns = [
     path("auth/login/", login_view, name="login"),
     path("auth/logout/", logout_view, name="logout"),
     path("auth/change-password/", change_password_view, name="change-password"),
+    path("auth/settings/", user_settings_view, name="user-settings"),
     path("auth/me/", me_view, name="me"),
     path("auth/oidc/login/", oidc_login_view, name="oidc-login"),
     path("auth/oidc/callback/", oidc_callback_view, name="oidc-callback"),

@@ -5,5 +5,5 @@
   min-height: 300px;
   cursor: text;
 }
-.ProseMirror { min-height: 280px; outline: none; }
+.ProseMirror { min-height: 280px; outline: none; font-family: var(--editor-font, system-ui); }
 .ProseMirror:focus { outline: none; }

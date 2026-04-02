@@ -34,7 +34,7 @@ class UserSerializer(serializers.ModelSerializer):
 class ProjectListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
-        fields = ["id", "title", "description"]
+        fields = ["id", "title", "description", "settings"]
 
 
 class ProjectCreateSerializer(serializers.ModelSerializer):
@@ -47,7 +47,7 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
 class ProjectUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
-        fields = ["title", "description"]
+        fields = ["title", "description", "settings"]
         extra_kwargs = {f: {"required": False} for f in fields}
 
 
@@ -116,7 +116,7 @@ class ProjectTreeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Project
-        fields = ["id", "title", "folders", "world_building"]
+        fields = ["id", "title", "settings", "folders", "world_building"]
 
     def get_folders(self, obj):
         root_folders = obj.folders.filter(parent__isnull=True).order_by("order")

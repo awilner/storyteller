@@ -105,6 +105,25 @@ def change_password_view(request):
     return Response({"detail": _("Password changed.")})
 
 
+@api_view(["GET", "PATCH"])
+@permission_classes([IsAuthenticated])
+def user_settings_view(request):
+    """Get or update the authenticated user's preferences."""
+    from .models import UserSettings
+    settings_obj, _ = UserSettings.objects.get_or_create(user=request.user)
+    if request.method == "GET":
+        return Response(settings_obj.preferences)
+    # PATCH — merge incoming keys into existing preferences
+    if not isinstance(request.data, dict):
+        return Response(
+            {"detail": _("Expected a JSON object.")},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    settings_obj.preferences.update(request.data)
+    settings_obj.save()
+    return Response(settings_obj.preferences)
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def me_view(request):

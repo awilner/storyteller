@@ -57,6 +57,7 @@ def _get_ui_strings():
         "editor.saving": _("Saving…"),
         "editor.save": _("Save"),
         "editor.select_file_placeholder": _("Select a file from the project tree to begin editing."),
+        "editor.folder_empty": _("This folder has no texts."),
         "editor.draft_cache_warning": _("Draft cache unavailable — edits are only stored locally until you save."),
         "editor.dismiss_warning": _("Dismiss warning"),
         "editor.save_failed": _("Save failed: %(error)s"),
@@ -111,9 +112,7 @@ def _get_ui_strings():
         "nav.characters": _("Characters"),
         "nav.locations": _("Locations"),
         "nav.notes": _("Notes"),
-        "nav.dashboard": _("Dashboard"),
-        "nav.settings": _("Settings"),
-        "nav.logout": _("Log out"),
+        "nav.project_settings": _("Project Settings"),
 
         # Top bar user menu
         "topbar.account": _("Account"),
@@ -134,6 +133,11 @@ def _get_ui_strings():
         # Settings page
         "settings.title": _("Settings"),
         "settings.placeholder": _("Settings will be available here in a future update."),
+        "settings.default_font": _("Default Editor Font"),
+        "settings.project_font": _("Editor Font"),
+        "settings.use_default": _("Use default (from user settings)"),
+        "settings.font_hint": _("This font is used in the text editor across all projects unless overridden in project settings."),
+        "settings.font_preview": _("The quick brown fox jumps over the lazy dog."),
         "versions.loading": _("Loading versions…"),
         "versions.no_versions": _("No versions yet."),
         "versions.chars": _("chars"),

@@ -2,14 +2,15 @@ import { useI18n } from "./I18nContext";
 import "./NavSidebar.css";
 
 const sections = [
-  { key: "editor",     icon: "✏️", labelKey: "nav.editor" },
-  { key: "outline",    icon: "🗂️", labelKey: "nav.outline" },
-  { key: "characters", icon: "👤", labelKey: "nav.characters" },
-  { key: "locations",  icon: "📍", labelKey: "nav.locations" },
-  { key: "notes",      icon: "📝", labelKey: "nav.notes" },
+  { key: "editor",           icon: "✏️", labelKey: "nav.editor" },
+  { key: "outline",          icon: "🗂️", labelKey: "nav.outline" },
+  { key: "characters",       icon: "👤", labelKey: "nav.characters" },
+  { key: "locations",        icon: "📍", labelKey: "nav.locations" },
+  { key: "notes",            icon: "📝", labelKey: "nav.notes" },
+  { key: "project-settings", icon: "⚙️", labelKey: "nav.project_settings" },
 ];
 
-export default function NavSidebar({ active, onChange, onDashboard, onSettings, onLogout }) {
+export default function NavSidebar({ active, onChange }) {
   const t = useI18n();
 
   return (
@@ -27,24 +28,11 @@ export default function NavSidebar({ active, onChange, onDashboard, onSettings, 
           {s.icon}
         </button>
       ))}
-      <div className="nav-sidebar-spacer" />
-      {onDashboard && (
-        <button type="button" className="nav-sidebar-bottom-btn" onClick={onDashboard}
-          title={t("nav.dashboard") || "Dashboard"} aria-label={t("nav.dashboard") || "Dashboard"}>🏠</button>
-      )}
-      {onSettings && (
-        <button type="button" className="nav-sidebar-bottom-btn" onClick={onSettings}
-          title={t("nav.settings") || "Settings"} aria-label={t("nav.settings") || "Settings"}>⚙️</button>
-      )}
-      {onLogout && (
-        <button type="button" className="nav-sidebar-bottom-btn" onClick={onLogout}
-          title={t("nav.logout") || "Log out"} aria-label={t("nav.logout") || "Log out"}>🚪</button>
-      )}
     </nav>
   );
 }
 
-export function MobileDrawer({ open, active, onChange, onDashboard, onSettings, onLogout, onClose }) {
+export function MobileDrawer({ open, active, onChange, onClose }) {
   const t = useI18n();
   if (!open) return null;
 
@@ -63,22 +51,6 @@ export function MobileDrawer({ open, active, onChange, onDashboard, onSettings, 
             {t(s.labelKey) || s.key}
           </button>
         ))}
-        <div className="nav-sidebar-spacer" />
-        {onDashboard && (
-          <button type="button" className="drawer-bottom-item" onClick={() => { onDashboard(); onClose(); }}>
-            <span className="drawer-item-icon">🏠</span> {t("nav.dashboard") || "Dashboard"}
-          </button>
-        )}
-        {onSettings && (
-          <button type="button" className="drawer-bottom-item" onClick={() => { onSettings(); onClose(); }}>
-            <span className="drawer-item-icon">⚙️</span> {t("nav.settings") || "Settings"}
-          </button>
-        )}
-        {onLogout && (
-          <button type="button" className="drawer-bottom-item" onClick={() => { onLogout(); onClose(); }}>
-            <span className="drawer-item-icon">🚪</span> {t("nav.logout") || "Log out"}
-          </button>
-        )}
       </nav>
     </>
   );
