@@ -11,6 +11,7 @@ import tempfile
 import xml.etree.ElementTree as ET
 import zipfile
 
+from django.utils.translation import gettext as _
 from striprtf.striprtf import rtf_to_text
 
 from .models import Folder, Project, ProjectFile
@@ -117,7 +118,7 @@ def _import_binder_children(children_el, project, docs_dir, parent_folder, order
     return order
 
 
-def _import_world_building(children_el, project, docs_dir, file_type):
+def _import_world_building(children_el, project, docs_dir, file_type, folder):
     """Import children of a world-building folder (Characters, Places) as ProjectFiles."""
     if children_el is None:
         return
@@ -130,7 +131,7 @@ def _import_world_building(children_el, project, docs_dir, file_type):
         content = _read_content(docs_dir, item_id)
         ProjectFile.objects.create(
             project=project,
-            folder=None,
+            folder=folder,
             file_type=file_type,
             title=title,
             description=_read_synopsis(docs_dir, item_id),
@@ -190,27 +191,42 @@ def import_scrivener_zip(zip_file, user):
 
         project = Project.objects.create(owner=user, title=project_title)
 
+        # Track folder order at root level
+        root_order = 0
+
         # Walk top-level binder items
         for item in binder.findall("BinderItem"):
             item_type = item.get("Type", "")
             children_el = item.find("Children")
 
             if item_type == "DraftFolder":
-                # Main manuscript content
-                _import_binder_children(children_el, project, docs_dir, None, 0)
+                # Main manuscript content under a "Manuscript" folder
+                manuscript_folder = Folder.objects.create(
+                    project=project, title=_("Manuscript"), icon="📖", order=root_order,
+                )
+                root_order += 1
+                _import_binder_children(children_el, project, docs_dir, manuscript_folder, 0)
 
             elif item_type == "Folder":
                 title_el = item.find("Title")
                 title = (title_el.text if title_el is not None else "").lower()
                 if "character" in title:
+                    char_folder = Folder.objects.create(
+                        project=project, title=_("Characters"), icon="👥", order=root_order,
+                    )
+                    root_order += 1
                     _import_world_building(
                         children_el, project, docs_dir,
-                        ProjectFile.FileType.CHARACTER,
+                        ProjectFile.FileType.CHARACTER, char_folder,
                     )
                 elif "place" in title or "location" in title:
+                    loc_folder = Folder.objects.create(
+                        project=project, title=_("Locations"), icon="🌎", order=root_order,
+                    )
+                    root_order += 1
                     _import_world_building(
                         children_el, project, docs_dir,
-                        ProjectFile.FileType.LOCATION,
+                        ProjectFile.FileType.LOCATION, loc_folder,
                     )
 
             # Skip ResearchFolder, TrashFolder, Template Sheets, etc.

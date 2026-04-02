@@ -50,8 +50,10 @@ class FileCacheTests(TestCase):
         self.client = APIClient()
         self.owner = User.objects.create_user(username="alice", password="pw")
         self.project = Project.objects.create(owner=self.owner, title="Novel")
+        self.folder = Folder.objects.create(project=self.project, title="F1", order=0)
         self.text = ProjectFile.objects.create(
             project=self.project,
+            folder=self.folder,
             file_type=ProjectFile.FileType.TEXT,
             title="Opening",
             content="original",
@@ -105,8 +107,10 @@ class FileVersionTests(TestCase):
         self.owner = User.objects.create_user(username="alice", password="pw")
         self.other = User.objects.create_user(username="bob", password="pw")
         self.project = Project.objects.create(owner=self.owner, title="Novel")
+        self.folder = Folder.objects.create(project=self.project, title="F1", order=0)
         self.text = ProjectFile.objects.create(
             project=self.project,
+            folder=self.folder,
             file_type=ProjectFile.FileType.TEXT,
             title="Opening",
             content="v0",
@@ -151,6 +155,7 @@ class FileVersionTests(TestCase):
         """Version belongs to a different file — should 404."""
         other_text = ProjectFile.objects.create(
             project=self.project,
+            folder=self.folder,
             file_type=ProjectFile.FileType.TEXT,
             title="Other",
         )
@@ -187,8 +192,10 @@ class FileVersionRevertTests(TestCase):
         self.client = APIClient()
         self.owner = User.objects.create_user(username="alice", password="pw")
         self.project = Project.objects.create(owner=self.owner, title="Novel")
+        self.folder = Folder.objects.create(project=self.project, title="F1", order=0)
         self.text = ProjectFile.objects.create(
             project=self.project,
+            folder=self.folder,
             file_type=ProjectFile.FileType.TEXT,
             title="Opening",
             content="current",

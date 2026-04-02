@@ -61,10 +61,12 @@ class ProjectFileModelTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="alice", password="pw")
         self.project = Project.objects.create(owner=self.user, title="Novel")
+        self.folder = Folder.objects.create(project=self.project, title="F1", order=0)
 
     def test_str(self):
         f = ProjectFile.objects.create(
             project=self.project,
+            folder=self.folder,
             file_type=ProjectFile.FileType.TEXT,
             title="Opening",
         )
@@ -73,31 +75,32 @@ class ProjectFileModelTests(TestCase):
     def test_default_content_empty(self):
         f = ProjectFile.objects.create(
             project=self.project,
+            folder=self.folder,
             file_type=ProjectFile.FileType.NOTE,
             title="Note",
         )
         self.assertEqual(f.content, "")
 
-    def test_folder_set_null_on_delete(self):
-        """Deleting a folder should set text's folder FK to NULL, not delete the text."""
-        folder = Folder.objects.create(project=self.project, title="F1", order=0)
+    def test_folder_cascade_deletes_files(self):
+        """Deleting a folder should delete its files."""
         text = ProjectFile.objects.create(
             project=self.project,
-            folder=folder,
+            folder=self.folder,
             file_type=ProjectFile.FileType.TEXT,
             title="Text",
         )
-        folder.delete()
-        text.refresh_from_db()
-        self.assertIsNone(text.folder)
+        self.folder.delete()
+        self.assertFalse(ProjectFile.objects.filter(pk=text.pk).exists())
 
 
 class FileVersionModelTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="alice", password="pw")
         self.project = Project.objects.create(owner=self.user, title="Novel")
+        self.folder = Folder.objects.create(project=self.project, title="F1", order=0)
         self.text = ProjectFile.objects.create(
             project=self.project,
+            folder=self.folder,
             file_type=ProjectFile.FileType.TEXT,
             title="Opening",
         )

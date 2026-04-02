@@ -98,12 +98,12 @@ class ProjectFileNodeSerializer(serializers.ModelSerializer):
 
 
 class FolderTreeSerializer(serializers.ModelSerializer):
-    texts = ProjectFileNodeSerializer(many=True)
+    items = ProjectFileNodeSerializer(source="texts", many=True)
     children = serializers.SerializerMethodField()
 
     class Meta:
         model = Folder
-        fields = ["id", "title", "order", "icon", "description", "notes", "tags", "target_word_count", "texts", "children"]
+        fields = ["id", "title", "order", "icon", "description", "notes", "tags", "target_word_count", "items", "children"]
 
     def get_children(self, obj):
         children = obj.children.all().order_by("order")
@@ -112,29 +112,14 @@ class FolderTreeSerializer(serializers.ModelSerializer):
 
 class ProjectTreeSerializer(serializers.ModelSerializer):
     folders = serializers.SerializerMethodField()
-    world_building = serializers.SerializerMethodField()
 
     class Meta:
         model = Project
-        fields = ["id", "title", "settings", "folders", "world_building"]
+        fields = ["id", "title", "settings", "folders"]
 
     def get_folders(self, obj):
         root_folders = obj.folders.filter(parent__isnull=True).order_by("order")
         return FolderTreeSerializer(root_folders, many=True).data
-
-    def get_world_building(self, obj):
-        files = obj.files.exclude(file_type=ProjectFile.FileType.TEXT).order_by("order")
-        grouped = {"characters": [], "locations": [], "notes": []}
-        type_map = {
-            ProjectFile.FileType.CHARACTER: "characters",
-            ProjectFile.FileType.LOCATION: "locations",
-            ProjectFile.FileType.NOTE: "notes",
-        }
-        for f in files:
-            key = type_map.get(f.file_type)
-            if key:
-                grouped[key].append(ProjectFileNodeSerializer(f).data)
-        return grouped
 
 
 class FileVersionListSerializer(serializers.ModelSerializer):

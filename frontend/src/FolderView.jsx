@@ -10,7 +10,7 @@ function collectTexts(folder) {
   for (const child of folder.children || []) {
     items.push({ kind: "folder", data: child, order: child.order });
   }
-  for (const text of folder.texts || []) {
+  for (const text of [...(folder.texts || []), ...(folder.items || [])]) {
     items.push({ kind: "text", data: text, order: text.order });
   }
   items.sort((a, b) => a.order - b.order);

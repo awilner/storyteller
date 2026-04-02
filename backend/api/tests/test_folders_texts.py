@@ -76,8 +76,8 @@ class FolderDeleteTests(TestCase):
         self.assertEqual(resp.status_code, 204)
         self.assertFalse(Folder.objects.filter(pk=self.folder.pk).exists())
 
-    def test_delete_folder_nullifies_text_fk(self):
-        """Deleting a folder should set text.folder to NULL (SET_NULL)."""
+    def test_delete_folder_cascades_files(self):
+        """Deleting a folder should delete its files (CASCADE)."""
         self.client.force_login(self.owner)
         text = ProjectFile.objects.create(
             project=self.project,
@@ -88,8 +88,7 @@ class FolderDeleteTests(TestCase):
         self.client.delete(
             f"/api/projects/{self.project.pk}/folders/{self.folder.pk}/"
         )
-        text.refresh_from_db()
-        self.assertIsNone(text.folder)
+        self.assertFalse(ProjectFile.objects.filter(pk=text.pk).exists())
 
     def test_delete_folder_non_owner(self):
         self.client.force_login(self.other)
@@ -265,18 +264,19 @@ class TextDeleteTests(TestCase):
         )
         self.assertEqual(resp.status_code, 403)
 
-    def test_delete_non_text_file_rejected(self):
-        """Deleting a character file via the text endpoint should 404."""
+    def test_delete_non_text_file_allowed(self):
+        """Deleting a character file via the text endpoint should succeed."""
         self.client.force_login(self.owner)
         char_file = ProjectFile.objects.create(
             project=self.project,
+            folder=self.folder,
             file_type=ProjectFile.FileType.CHARACTER,
             title="Hero",
         )
         resp = self.client.delete(
             f"/api/projects/{self.project.pk}/texts/{char_file.pk}/"
         )
-        self.assertEqual(resp.status_code, 404)
+        self.assertEqual(resp.status_code, 204)
 
 
 class TextUpdateTests(TestCase):
@@ -361,20 +361,23 @@ class TextUpdateTests(TestCase):
         resp = self.client.patch(self.url(), {"title": "Nope"}, format="json")
         self.assertEqual(resp.status_code, 403)
 
-    def test_update_non_text_via_text_endpoint_404(self):
-        """PATCH on a character file via the text endpoint should 404."""
+    def test_update_non_text_via_text_endpoint_allowed(self):
+        """PATCH on a character file via the text endpoint should succeed."""
         self.client.force_login(self.owner)
         char_file = ProjectFile.objects.create(
             project=self.project,
+            folder=self.folder,
             file_type=ProjectFile.FileType.CHARACTER,
             title="Hero",
         )
         resp = self.client.patch(
             f"/api/projects/{self.project.pk}/texts/{char_file.pk}/",
-            {"title": "Nope"},
+            {"title": "Updated Hero"},
             format="json",
         )
-        self.assertEqual(resp.status_code, 404)
+        self.assertEqual(resp.status_code, 200)
+        char_file.refresh_from_db()
+        self.assertEqual(char_file.title, "Updated Hero")
 
 
 class SubfolderCreateTests(TestCase):
@@ -444,8 +447,8 @@ class SubfolderCreateTests(TestCase):
         self.assertEqual(resp.status_code, 204)
         self.assertFalse(Folder.objects.filter(pk=child.pk).exists())
 
-    def test_delete_parent_nullifies_nested_texts(self):
-        """Texts in a subfolder should have folder set to NULL when parent is deleted."""
+    def test_delete_parent_cascades_nested_texts(self):
+        """Texts in a subfolder should be deleted when parent folder is deleted (CASCADE)."""
         self.client.force_login(self.owner)
         child = Folder.objects.create(
             project=self.project, title="Child", order=0, parent=self.parent,
@@ -459,5 +462,4 @@ class SubfolderCreateTests(TestCase):
         self.client.delete(
             f"/api/projects/{self.project.pk}/folders/{self.parent.pk}/"
         )
-        text.refresh_from_db()
-        self.assertIsNone(text.folder)
+        self.assertFalse(ProjectFile.objects.filter(pk=text.pk).exists())

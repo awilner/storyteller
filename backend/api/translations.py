@@ -106,13 +106,12 @@ def _get_ui_strings():
         # Version history
         "versions.title": _("Version History"),
 
-        # Navigation
-        "nav.editor": _("Editor"),
-        "nav.outline": _("Outline"),
-        "nav.characters": _("Characters"),
-        "nav.locations": _("Locations"),
-        "nav.notes": _("Notes"),
-        "nav.project_settings": _("Project Settings"),
+        # Import folder names
+        "import.folder_manuscript": _("Manuscript"),
+        "import.folder_characters": _("Characters"),
+        "import.folder_locations": _("Locations"),
+        "import.folder_items": _("Items"),
+        "import.folder_notes": _("Notes"),
 
         # Top bar user menu
         "topbar.account": _("Account"),

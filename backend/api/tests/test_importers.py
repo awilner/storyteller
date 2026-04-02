@@ -11,7 +11,7 @@ from rest_framework.test import APIClient
 
 from api.models import Folder, Project, ProjectFile
 from api.scrivener import import_scrivener_zip
-from api.ywriter import _bbcode_to_markdown, import_ywriter_zip
+from api.ywriter import _bbcode_to_markdown, import_ywriter
 
 
 # ── Helpers ───────────────────────────────────────────────────
@@ -163,6 +163,28 @@ Second paragraph.]]></SceneContent>
       <SortOrder>1</SortOrder>
     </LOCATION>
   </LOCATIONS>
+  <ITEMS>
+    <ITEM>
+      <ID>1</ID>
+      <Title><![CDATA[Magic Sword]]></Title>
+      <Desc><![CDATA[A legendary blade]]></Desc>
+      <SortOrder>1</SortOrder>
+    </ITEM>
+  </ITEMS>
+  <PROJECTNOTES>
+    <PROJECTNOTE>
+      <ID>1</ID>
+      <Title><![CDATA[Story themes]]></Title>
+      <Desc><![CDATA[Good vs evil]]></Desc>
+      <SortOrder>1</SortOrder>
+    </PROJECTNOTE>
+    <PROJECTNOTE>
+      <ID>2</ID>
+      <Title><![CDATA[Research]]></Title>
+      <Desc><![CDATA[Medieval weapons]]></Desc>
+      <SortOrder>2</SortOrder>
+    </PROJECTNOTE>
+  </PROJECTNOTES>
 </YWRITER7>
 """
 
@@ -249,10 +271,15 @@ class ScrivenerImportTests(TestCase):
 
     def test_folders_created(self):
         project = import_scrivener_zip(_scrivener_zip(), self.user)
-        folders = list(project.folders.order_by("order"))
-        self.assertEqual(len(folders), 2)
-        self.assertEqual(folders[0].title, "Chapter One")
-        self.assertEqual(folders[1].title, "Chapter Two")
+        root_folders = list(project.folders.filter(parent__isnull=True).order_by("order"))
+        self.assertEqual(len(root_folders), 3)  # Manuscript, Characters, Locations
+        self.assertEqual(root_folders[0].title, "Manuscript")
+        self.assertEqual(root_folders[0].icon, "📖")
+        # Chapter folders are children of Manuscript
+        chapters = list(root_folders[0].children.order_by("order"))
+        self.assertEqual(len(chapters), 2)
+        self.assertEqual(chapters[0].title, "Chapter One")
+        self.assertEqual(chapters[1].title, "Chapter Two")
 
     def test_texts_created_in_folders(self):
         project = import_scrivener_zip(_scrivener_zip(), self.user)
@@ -334,27 +361,33 @@ class ScrivenerImportViewTests(TestCase):
 # ── yWriter7 import tests ────────────────────────────────────
 
 class YWriterImportTests(TestCase):
-    """Tests for import_ywriter_zip."""
+    """Tests for import_ywriter."""
 
     def setUp(self):
         self.user = User.objects.create_user(username="alice", password="pw")
 
     def test_basic_import(self):
-        project = import_ywriter_zip(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_zip(), self.user)
         self.assertEqual(project.title, "Test Novel")
         self.assertEqual(project.description, "A test project")
         self.assertEqual(project.owner, self.user)
 
     def test_folders_from_chapters(self):
-        project = import_ywriter_zip(_ywriter_zip(), self.user)
-        folders = list(project.folders.order_by("order"))
-        self.assertEqual(len(folders), 2)
-        self.assertEqual(folders[0].title, "Chapter One")
-        self.assertEqual(folders[0].description, "First chapter")
-        self.assertEqual(folders[1].title, "Chapter Two")
+        project = import_ywriter(_ywriter_zip(), self.user)
+        root_folders = list(project.folders.filter(parent__isnull=True).order_by("order"))
+        # Manuscript + Characters + Locations + Items + Notes
+        self.assertEqual(len(root_folders), 5)
+        self.assertEqual(root_folders[0].title, "Manuscript")
+        self.assertEqual(root_folders[0].icon, "📖")
+        # Chapters are children of Manuscript
+        chapters = list(root_folders[0].children.order_by("order"))
+        self.assertEqual(len(chapters), 2)
+        self.assertEqual(chapters[0].title, "Chapter One")
+        self.assertEqual(chapters[0].description, "First chapter")
+        self.assertEqual(chapters[1].title, "Chapter Two")
 
     def test_texts_from_scenes(self):
-        project = import_ywriter_zip(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_zip(), self.user)
         ch1 = project.folders.get(title="Chapter One")
         texts = list(ch1.texts.order_by("order"))
         # Scene 2 is unused, so only scene 1 should be imported
@@ -362,51 +395,51 @@ class YWriterImportTests(TestCase):
         self.assertEqual(texts[0].title, "Opening")
 
     def test_unused_scenes_skipped(self):
-        project = import_ywriter_zip(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_zip(), self.user)
         self.assertFalse(
             project.files.filter(title="Unused Scene").exists()
         )
 
     def test_bbcode_italic_converted(self):
-        project = import_ywriter_zip(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_zip(), self.user)
         opening = project.files.get(title="Opening")
         self.assertIn("*world*", opening.content)
         self.assertNotIn("[i]", opening.content)
 
     def test_bbcode_bold_converted(self):
-        project = import_ywriter_zip(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_zip(), self.user)
         finale = project.files.get(title="Finale")
         self.assertIn("**Bold**", finale.content)
         self.assertNotIn("[b]", finale.content)
 
     def test_bbcode_strikethrough_converted(self):
-        project = import_ywriter_zip(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_zip(), self.user)
         finale = project.files.get(title="Finale")
         self.assertIn("~~struck~~", finale.content)
         self.assertNotIn("[s]", finale.content)
 
     def test_newlines_converted_to_paragraphs(self):
-        project = import_ywriter_zip(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_zip(), self.user)
         opening = project.files.get(title="Opening")
         # Single \n in source should become \n\n
         self.assertIn("\n\n", opening.content)
         self.assertIn("Second paragraph.", opening.content)
 
     def test_scene_description_and_notes(self):
-        project = import_ywriter_zip(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_zip(), self.user)
         opening = project.files.get(title="Opening")
         self.assertEqual(opening.description, "Scene synopsis")
         self.assertEqual(opening.notes, "Author note")
 
     def test_characters_imported(self):
-        project = import_ywriter_zip(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_zip(), self.user)
         chars = list(project.files.filter(file_type="character").order_by("order"))
         self.assertEqual(len(chars), 2)
         self.assertEqual(chars[0].title, "Hero")
         self.assertEqual(chars[1].title, "Sidekick")
 
     def test_character_content_assembled(self):
-        project = import_ywriter_zip(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_zip(), self.user)
         hero = project.files.get(title="Hero")
         self.assertIn("**Full Name:** John Doe", hero.content)
         self.assertIn("**Description:** Brave", hero.content)
@@ -415,23 +448,51 @@ class YWriterImportTests(TestCase):
 
     def test_character_minimal_fields(self):
         """Character with only a title should still import cleanly."""
-        project = import_ywriter_zip(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_zip(), self.user)
         sidekick = project.files.get(title="Sidekick")
         # No fullname/desc/bio, so content should be empty
         self.assertEqual(sidekick.content, "")
 
     def test_locations_imported(self):
-        project = import_ywriter_zip(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_zip(), self.user)
         locs = list(project.files.filter(file_type="location"))
         self.assertEqual(len(locs), 1)
         self.assertEqual(locs[0].title, "Village")
         self.assertEqual(locs[0].description, "A small village")
 
+    def test_items_imported(self):
+        project = import_ywriter(_ywriter_zip(), self.user)
+        items_folder = project.folders.get(title="Items")
+        self.assertEqual(items_folder.icon, "🧰")
+        items = list(items_folder.texts.order_by("order"))
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].title, "Magic Sword")
+        self.assertEqual(items[0].content, "A legendary blade")
+        self.assertEqual(items[0].file_type, "item")
+
+    def test_project_notes_imported(self):
+        project = import_ywriter(_ywriter_zip(), self.user)
+        notes_folder = project.folders.get(title="Notes")
+        self.assertEqual(notes_folder.icon, "📒")
+        notes = list(notes_folder.texts.order_by("order"))
+        self.assertEqual(len(notes), 2)
+        self.assertEqual(notes[0].title, "Story themes")
+        self.assertEqual(notes[0].content, "Good vs evil")
+        self.assertEqual(notes[1].title, "Research")
+        self.assertEqual(notes[1].content, "Medieval weapons")
+
     def test_no_yw7_raises(self):
         bad_zip = _make_zip({"readme.txt": "nothing"})
         with self.assertRaises(ValueError) as ctx:
-            import_ywriter_zip(bad_zip, self.user)
+            import_ywriter(bad_zip, self.user)
         self.assertIn(".yw7", str(ctx.exception))
+
+    def test_direct_yw7_import(self):
+        """Importing a raw .yw7 file (not zipped) should work."""
+        uploaded = SimpleUploadedFile("novel.yw7", MINIMAL_YW7.encode("utf-8"), content_type="application/xml")
+        project = import_ywriter(uploaded, self.user)
+        self.assertEqual(project.title, "Test Novel")
+        self.assertTrue(project.folders.filter(title="Manuscript").exists())
 
     def test_chapter_sort_order_respected(self):
         """Chapters should be ordered by SortOrder, not by ID."""
@@ -440,11 +501,12 @@ class YWriterImportTests(TestCase):
             "<SortOrder>1</SortOrder>\n      <Scenes><ScID>1</ScID><ScID>2</ScID></Scenes>",
             "<SortOrder>5</SortOrder>\n      <Scenes><ScID>1</ScID><ScID>2</ScID></Scenes>",
         )
-        project = import_ywriter_zip(_ywriter_zip(xml), self.user)
-        folders = list(project.folders.order_by("order"))
+        project = import_ywriter(_ywriter_zip(xml), self.user)
+        manuscript = project.folders.get(title="Manuscript")
+        chapters = list(manuscript.children.order_by("order"))
         # Chapter Two (sort=2) should come before Chapter One (sort=5)
-        self.assertEqual(folders[0].title, "Chapter Two")
-        self.assertEqual(folders[1].title, "Chapter One")
+        self.assertEqual(chapters[0].title, "Chapter Two")
+        self.assertEqual(chapters[1].title, "Chapter One")
 
 
 class YWriterImportViewTests(TestCase):

@@ -30,7 +30,7 @@ class Project(models.Model):
 
 
 class Folder(models.Model):
-    """Groups texts within a project into ordered folders. Supports nesting."""
+    """Groups items within a project into ordered folders. Supports nesting."""
 
     project = models.ForeignKey(
         Project,
@@ -69,6 +69,7 @@ class ProjectFile(models.Model):
       - text: narrative content, optionally grouped into a folder
       - character: character profile (world-building)
       - location: location description (world-building)
+      - item: object or artifact (world-building)
       - note: free-form notes (world-building)
     """
 
@@ -76,6 +77,7 @@ class ProjectFile(models.Model):
         TEXT = "text", "Text"
         CHARACTER = "character", "Character"
         LOCATION = "location", "Location"
+        ITEM = "item", "Item"
         NOTE = "note", "Note"
 
     project = models.ForeignKey(
@@ -85,11 +87,9 @@ class ProjectFile(models.Model):
     )
     folder = models.ForeignKey(
         Folder,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
+        on_delete=models.CASCADE,
         related_name="texts",
-        help_text="Only applicable for text files.",
+        help_text="Parent folder for this file.",
     )
     file_type = models.CharField(
         max_length=20,

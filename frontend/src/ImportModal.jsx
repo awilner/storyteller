@@ -4,7 +4,7 @@ import "./ImportModal.css";
 
 const FORMATS = [
   { value: "scrivener", label: "Scrivener (.scriv.zip)" },
-  { value: "ywriter", label: "yWriter7 (.yw7.zip)" },
+  { value: "ywriter", label: "yWriter7 (.yw7 / .zip)" },
 ];
 
 export default function ImportModal({ onClose, onImported }) {
@@ -36,7 +36,7 @@ export default function ImportModal({ onClose, onImported }) {
     }
   };
 
-  const acceptMap = { scrivener: ".zip", ywriter: ".zip" };
+  const acceptMap = { scrivener: ".zip", ywriter: ".zip,.yw7" };
 
   return (
     <div className="import-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>

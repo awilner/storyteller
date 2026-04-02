@@ -3,15 +3,7 @@ import { useI18n } from "./I18nContext";
 import logoSrc from "../resources/Storyteller.svg";
 import "./TopBar.css";
 
-const navLabelKeys = {
-  editor: "nav.editor",
-  outline: "nav.outline",
-  characters: "nav.characters",
-  locations: "nav.locations",
-  notes: "nav.notes",
-};
-
-export default function TopBar({ projectTitle, navSection, onMenuToggle, onHome, username, onAccount, onSettings, onLogout }) {
+export default function TopBar({ projectTitle, onHome, username, onAccount, onSettings, onLogout }) {
   const t = useI18n();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -27,29 +19,16 @@ export default function TopBar({ projectTitle, navSection, onMenuToggle, onHome,
     return () => document.removeEventListener("mousedown", handler);
   }, [dropdownOpen]);
 
-  const sectionLabel = navSection && navLabelKeys[navSection]
-    ? t(navLabelKeys[navSection]) || navSection
-    : null;
-
   const logoClass = `topbar-logo${onHome ? " topbar-logo-clickable" : ""}`;
 
   return (
     <div className="topbar">
-      {onMenuToggle && (
-        <button type="button" className="topbar-hamburger" onClick={onMenuToggle} aria-label="Menu">☰</button>
-      )}
       <img src={logoSrc} alt="" style={{ height: 24 }} className={onHome ? "topbar-logo-clickable" : ""} onClick={onHome || undefined} />
       <span className={logoClass} onClick={onHome || undefined}>Storyteller</span>
       {projectTitle && (
         <>
           <span className="topbar-separator">/</span>
           <span className="topbar-context">{projectTitle}</span>
-        </>
-      )}
-      {sectionLabel && (
-        <>
-          <span className="topbar-separator">/</span>
-          <span className="topbar-context">{sectionLabel}</span>
         </>
       )}
       {username && (

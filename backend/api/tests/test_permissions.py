@@ -1,7 +1,7 @@
 from django.contrib.auth.models import AnonymousUser, User
 from django.test import RequestFactory, TestCase
 
-from api.models import Project, ProjectFile
+from api.models import Folder, Project, ProjectFile
 from api.permissions import IsProjectOwner
 
 
@@ -21,8 +21,10 @@ class IsProjectOwnerTests(TestCase):
         self.owner = User.objects.create_user(username="owner", password="pw")
         self.other = User.objects.create_user(username="other", password="pw")
         self.project = Project.objects.create(owner=self.owner, title="Novel")
+        self.folder = Folder.objects.create(project=self.project, title="F1", order=0)
         self.file = ProjectFile.objects.create(
             project=self.project,
+            folder=self.folder,
             file_type=ProjectFile.FileType.TEXT,
             title="Opening",
         )

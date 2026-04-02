@@ -7,14 +7,21 @@ import { useI18n } from "./I18nContext";
 const DEFAULT_FOLDER_ICON = "📁";
 const DEFAULT_TEXT_ICON = "📄";
 
+const FILE_TYPE_ICONS = {
+  text: "📄",
+  character: "👤",
+  location: "📍",
+  note: "📝",
+  item: "🔧"
+};
+
 /* ── Transform backend tree → arborist nodes ───────────────── */
 
 /**
  * Transform backend tree → arborist nodes.
- * @param {object} tree - The project tree from the API.
- * @param {string} filter - "manuscript" (folders/texts only), "characters", "locations", "notes", or "all".
+ * Single unified tree: folders contain items (files of any type).
  */
-function toArboristNodes(tree, filter = "all") {
+function toArboristNodes(tree) {
   if (!tree) return [];
 
   const mapFolder = (folder) => {
@@ -22,8 +29,8 @@ function toArboristNodes(tree, filter = "all") {
     for (const child of folder.children || []) {
       items.push({ ...child, _kind: "folder" });
     }
-    for (const text of folder.texts || []) {
-      items.push({ ...text, _kind: "text" });
+    for (const item of folder.items || []) {
+      items.push({ ...item, _kind: "text" });
     }
     items.sort((a, b) => a.order - b.order);
 
@@ -44,49 +51,9 @@ function toArboristNodes(tree, filter = "all") {
     };
   };
 
-  // Manuscript folders
-  if (filter === "manuscript" || filter === "all") {
-    const topItems = [];
-    for (const folder of tree.folders || []) {
-      topItems.push({ ...folder, _kind: "folder" });
-    }
-    topItems.sort((a, b) => a.order - b.order);
-    const nodes = topItems.map((item) => mapFolder(item));
+  const nodes = (tree.folders || []).slice().sort((a, b) => a.order - b.order).map((f) => mapFolder(f));
 
-    if (filter === "manuscript") return nodes;
-
-    // "all" — append world-building groups
-    const wb = tree.world_building || {};
-    for (const [key, items] of Object.entries(wb)) {
-      if (!items?.length) continue;
-      nodes.push({
-        id: `wb-${key}`,
-        name: key.charAt(0).toUpperCase() + key.slice(1),
-        _type: "wb-group",
-        children: items.slice().sort((a, b) => a.order - b.order).map((f) => ({
-          id: `wb-file-${f.id}`,
-          name: f.title,
-          _type: "wb-file",
-          _dbId: f.id,
-          _icon: f.icon || "",
-          _data: f,
-        })),
-      });
-    }
-    return nodes;
-  }
-
-  // World-building filter: "characters", "locations", or "notes"
-  const wb = tree.world_building || {};
-  const items = wb[filter] || [];
-  return items.slice().sort((a, b) => a.order - b.order).map((f) => ({
-    id: `wb-file-${f.id}`,
-    name: f.title,
-    _type: "wb-file",
-    _dbId: f.id,
-    _icon: f.icon || "",
-    _data: f,
-  }));
+  return nodes;
 }
 
 /* ── Context menu ──────────────────────────────────────────── */
@@ -175,21 +142,7 @@ const nameStyle = { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "n
 
 function Node({ node, style, dragHandle }) {
   const data = node.data;
-  const isWbGroup = data._type === "wb-group";
   const isFolder = data._type === "folder";
-  const isWbFile = data._type === "wb-file";
-
-  if (isWbGroup) {
-    return (
-      <div data-row-index={node.rowIndex} style={{ ...style, display: "flex", alignItems: "center", cursor: "pointer", fontWeight: 600, fontSize: "0.9rem", userSelect: "none" }}
-        onClick={() => node.toggle()}>
-        <span style={{ width: "1em", textAlign: "center", marginRight: 4, fontSize: "0.7rem" }}>
-          {node.isOpen ? "▼" : "▶"}
-        </span>
-        <span style={{ textTransform: "capitalize", ...nameStyle }} title={data.name}>{data.name}</span>
-      </div>
-    );
-  }
 
   if (isFolder) {
     const icon = data._icon || DEFAULT_FOLDER_ICON;
@@ -212,10 +165,11 @@ function Node({ node, style, dragHandle }) {
     );
   }
 
-  // Text or world-building file
-  const icon = data._icon || DEFAULT_TEXT_ICON;
+  // Text / file item
+  const fileType = data._data?.file_type || "text";
+  const icon = data._icon || FILE_TYPE_ICONS[fileType] || DEFAULT_TEXT_ICON;
   return (
-    <div ref={isWbFile ? undefined : dragHandle} data-row-index={node.rowIndex}
+    <div ref={dragHandle} data-row-index={node.rowIndex}
       style={{ ...style, display: "flex", alignItems: "center", cursor: "pointer", borderRadius: 4, fontSize: "0.9rem",
         backgroundColor: node.isSelected ? "#d0e4ff" : "transparent",
         fontWeight: node.isSelected ? 600 : 400 }}>
@@ -233,7 +187,7 @@ function Node({ node, style, dragHandle }) {
 
 /* ── Main component ────────────────────────────────────────── */
 
-export default function ProjectTree({ tree, onSelectFile, activeFileId, selectedFolderId, onSelectFolder, onAddFolder, onDeleteFolder, onAddText, onDeleteText, onReorder, onRenameFolder, onRenameText, onChangeFolderIcon, onChangeTextIcon, treeFilter }) {
+export default function ProjectTree({ tree, onSelectFile, activeFileId, selectedFolderId, onSelectFolder, onAddFolder, onDeleteFolder, onAddText, onDeleteText, onReorder, onRenameFolder, onRenameText, onChangeFolderIcon, onChangeTextIcon }) {
   const t = useI18n();
   const [menu, setMenu] = useState(null);
   const [iconPicker, setIconPicker] = useState(null);
@@ -250,7 +204,7 @@ export default function ProjectTree({ tree, onSelectFile, activeFileId, selected
     return () => ro.disconnect();
   }, []);
 
-  const arboristData = useMemo(() => toArboristNodes(tree, treeFilter || "all"), [tree, treeFilter]);
+  const arboristData = useMemo(() => toArboristNodes(tree), [tree]);
 
   const selection = useMemo(() => {
     if (activeFileId) return `text-${activeFileId}`;
@@ -304,21 +258,16 @@ export default function ProjectTree({ tree, onSelectFile, activeFileId, selected
   }, [onReorder, arboristData]);
 
   const disableDrop = useCallback(({ parentNode, dragNodes }) => {
+    // Root level: only folders allowed
     if (!parentNode || parentNode.isRoot) {
-      if (dragNodes.some((n) => n.data._type !== "folder")) return true;
-      return false;
+      return dragNodes.some((n) => n.data._type !== "folder");
     }
-    const pType = parentNode.data?._type;
-    if (pType === "wb-group" || pType === "wb-file") return true;
-    if (pType === "text") return true;
-    if (dragNodes.some((n) => n.data._type === "wb-file" || n.data._type === "wb-group")) return true;
+    // Can't drop into a text item
+    if (parentNode.data?._type === "text") return true;
     return false;
   }, []);
 
-  const disableDrag = useCallback((data) => {
-    const dtype = data._type;
-    return dtype === "wb-group" || dtype === "wb-file";
-  }, []);
+  const disableDrag = useCallback(() => false, []);
 
   const handleContextMenu = useCallback((e) => {
     e.preventDefault();

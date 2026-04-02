@@ -24,14 +24,22 @@ class ProjectTreeTests(TestCase):
             title="Opening",
             order=0,
         )
+        self.char_folder = Folder.objects.create(
+            project=self.project, title="Characters", order=2,
+        )
         self.char_file = ProjectFile.objects.create(
             project=self.project,
+            folder=self.char_folder,
             file_type=ProjectFile.FileType.CHARACTER,
             title="Hero",
             order=0,
         )
+        self.loc_folder = Folder.objects.create(
+            project=self.project, title="Locations", order=3,
+        )
         self.loc_file = ProjectFile.objects.create(
             project=self.project,
+            folder=self.loc_folder,
             file_type=ProjectFile.FileType.LOCATION,
             title="Castle",
             order=0,
@@ -43,16 +51,19 @@ class ProjectTreeTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertEqual(data["title"], "Novel")
-        self.assertEqual(len(data["folders"]), 2)
+        self.assertEqual(len(data["folders"]), 4)
 
         f1_data = next(f for f in data["folders"] if f["id"] == self.f1.pk)
-        self.assertEqual(len(f1_data["texts"]), 1)
-        self.assertEqual(f1_data["texts"][0]["title"], "Opening")
+        self.assertEqual(len(f1_data["items"]), 1)
+        self.assertEqual(f1_data["items"][0]["title"], "Opening")
 
-        wb = data["world_building"]
-        self.assertEqual(len(wb["characters"]), 1)
-        self.assertEqual(len(wb["locations"]), 1)
-        self.assertEqual(wb["notes"], [])
+        char_folder = next(f for f in data["folders"] if f["title"] == "Characters")
+        self.assertEqual(len(char_folder["items"]), 1)
+        self.assertEqual(char_folder["items"][0]["title"], "Hero")
+
+        loc_folder = next(f for f in data["folders"] if f["title"] == "Locations")
+        self.assertEqual(len(loc_folder["items"]), 1)
+        self.assertEqual(loc_folder["items"][0]["title"], "Castle")
 
     def test_tree_non_owner_denied(self):
         self.client.force_login(self.other)
@@ -75,9 +86,6 @@ class ProjectTreeTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertEqual(data["folders"], [])
-        self.assertEqual(data["world_building"], {
-            "characters": [], "locations": [], "notes": [],
-        })
 
     def test_tree_response_is_json(self):
         """Verify we get JSON, not HTML (regression for BrowsableAPI bug)."""
@@ -105,7 +113,7 @@ class ProjectTreeTests(TestCase):
         self.assertEqual(f1_data["target_word_count"], 3000)
         self.assertIn("notes", f1_data)
 
-        text_data = f1_data["texts"][0]
+        text_data = f1_data["items"][0]
         self.assertEqual(text_data["description"], "Text desc")
         self.assertEqual(text_data["tags"], ["action"])
         self.assertEqual(text_data["target_word_count"], 1000)
@@ -157,20 +165,20 @@ class NestedFolderTreeTests(TestCase):
         self.assertEqual(len(data["folders"]), 1)
         root_data = data["folders"][0]
         self.assertEqual(root_data["title"], "Act 1")
-        self.assertEqual(len(root_data["texts"]), 1)
-        self.assertEqual(root_data["texts"][0]["title"], "Prologue")
+        self.assertEqual(len(root_data["items"]), 1)
+        self.assertEqual(root_data["items"][0]["title"], "Prologue")
         # Child folder nested
         self.assertEqual(len(root_data["children"]), 1)
         child_data = root_data["children"][0]
         self.assertEqual(child_data["title"], "Chapter 1")
-        self.assertEqual(len(child_data["texts"]), 1)
-        self.assertEqual(child_data["texts"][0]["title"], "Scene 1")
+        self.assertEqual(len(child_data["items"]), 1)
+        self.assertEqual(child_data["items"][0]["title"], "Scene 1")
         # Grandchild folder nested
         self.assertEqual(len(child_data["children"]), 1)
         gc_data = child_data["children"][0]
         self.assertEqual(gc_data["title"], "Section A")
-        self.assertEqual(len(gc_data["texts"]), 1)
-        self.assertEqual(gc_data["texts"][0]["title"], "Paragraph 1")
+        self.assertEqual(len(gc_data["items"]), 1)
+        self.assertEqual(gc_data["items"][0]["title"], "Paragraph 1")
 
     def test_tree_excludes_subfolders_from_root(self):
         """Subfolders should not appear at the top-level folders list."""

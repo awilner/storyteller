@@ -15,7 +15,7 @@ from .models import FileVersion, Folder, OIDCIdentity, Project, ProjectFile
 from .oidc import exchange_code_for_claims, get_authorization_url
 from .permissions import IsProjectOwner
 from .scrivener import import_scrivener_zip
-from .ywriter import import_ywriter_zip
+from .ywriter import import_ywriter
 from .serializers import (
     FileVersionDetailSerializer,
     FileVersionListSerializer,
@@ -301,6 +301,7 @@ def project_tree_view(request, project_pk):
             "folders__texts",
             "folders__children__texts",
             "folders__children__children__texts",
+            "folders__children__children__children__texts",
             "files",
         ),
         pk=project_pk,
@@ -347,10 +348,11 @@ def text_create_view(request, project_pk, folder_pk):
     folder = get_object_or_404(Folder, pk=folder_pk, project=project)
     serializer = TextCreateSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
+    file_type = request.data.get("file_type", ProjectFile.FileType.TEXT)
     serializer.save(
         project=project,
         folder=folder,
-        file_type=ProjectFile.FileType.TEXT,
+        file_type=file_type,
     )
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -362,7 +364,6 @@ def text_detail_view(request, project_pk, file_pk):
         ProjectFile,
         pk=file_pk,
         project_id=project_pk,
-        file_type=ProjectFile.FileType.TEXT,
     )
 
     if request.method == "DELETE":
@@ -518,7 +519,7 @@ def reorder_view(request, project_pk):
             if tid is None:
                 continue
             text = ProjectFile.objects.filter(
-                pk=tid, project=project, file_type=ProjectFile.FileType.TEXT,
+                pk=tid, project=project,
             ).first()
             if not text:
                 continue
@@ -526,9 +527,7 @@ def reorder_view(request, project_pk):
                 text.order = item["order"]
             if "folder" in item:
                 folder_id = item["folder"]
-                if folder_id is None:
-                    text.folder = None
-                else:
+                if folder_id is not None:
                     folder = Folder.objects.filter(pk=folder_id, project=project).first()
                     if folder:
                         text.folder = folder
@@ -575,7 +574,7 @@ def ywriter_import_view(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
     try:
-        project = import_ywriter_zip(uploaded, request.user)
+        project = import_ywriter(uploaded, request.user)
     except ValueError as exc:
         return Response(
             {"detail": str(exc)},
