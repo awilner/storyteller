@@ -9,10 +9,47 @@ import FormattingToolbar from "./FormattingToolbar";
 import FolderView from "./FolderView";
 import VersionHistoryPanel from "./VersionHistoryPanel";
 import PropertiesPanel from "./PropertiesPanel";
-import { fetchProjectTree, fetchFile, saveDraftCache, createVersion, createFolder, deleteFolder, createText, deleteText, updateFolder, updateText, reorderTree } from "./api";
+import { fetchProjectTree, fetchFile, saveDraftCache, createVersion, createFolder, deleteFolder, createText, deleteText, updateFolder, updateText, reorderTree, emptyTrash } from "./api";
 import "./EditorView.css";
 
 const DEBOUNCE_MS = 2000;
+
+function getTrashFolderId(tree) {
+  if (!tree?.folders) return null;
+  const trash = tree.folders.find((f) => f.is_trash);
+  return trash ? trash.id : null;
+}
+
+function isInsideTrash(tree, folderId) {
+  if (!tree?.folders) return false;
+  const trashFolder = tree.folders.find((f) => f.is_trash);
+  if (!trashFolder) return false;
+  if (folderId === trashFolder.id) return true;
+  const search = (folders) => {
+    for (const f of folders || []) {
+      if (f.id === folderId) return true;
+      if (search(f.children)) return true;
+    }
+    return false;
+  };
+  return search(trashFolder.children);
+}
+
+function isTextInsideTrash(tree, fileId) {
+  if (!tree?.folders) return false;
+  const trashFolder = tree.folders.find((f) => f.is_trash);
+  if (!trashFolder) return false;
+  const search = (folders) => {
+    for (const f of folders || []) {
+      if ((f.items || []).some((t) => t.id === fileId)) return true;
+      if (search(f.children)) return true;
+    }
+    return false;
+  };
+  // Check direct items of trash folder
+  if ((trashFolder.items || []).some((t) => t.id === fileId)) return true;
+  return search(trashFolder.children);
+}
 
 export default function EditorView({ projectId, initialFileId, onLogout, onDashboard, username, onAccount, onSettings }) {
   const t = useI18n();
@@ -351,20 +388,43 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   }, [projectId, tree, refreshTree, findFolderById]);
 
   const handleDeleteFolder = useCallback(async (folderId, title) => {
-    if (!window.confirm(t("tree.confirm_delete_folder", { title }))) return;
-    try {
-      if (activeFileId) {
-        const folder = findFolderById(tree?.folders, folderId);
-        if (folder && folderContainsFile(folder, activeFileId)) {
-          setActiveFileId(null);
-          setFileContent(null);
-          draftRef.current = null;
+    const inTrash = isInsideTrash(tree, folderId);
+    if (inTrash) {
+      // Permanent delete — show confirmation (mention contents for folders)
+      if (!window.confirm(t("trash.confirm_permanent_delete_folder", { title }))) return;
+      try {
+        if (activeFileId) {
+          const folder = findFolderById(tree?.folders, folderId);
+          if (folder && folderContainsFile(folder, activeFileId)) {
+            setActiveFileId(null);
+            setFileContent(null);
+            draftRef.current = null;
+          }
         }
+        await deleteFolder(projectId, folderId);
+        await refreshTree();
+      } catch (err) {
+        setTreeError(err.message);
       }
-      await deleteFolder(projectId, folderId);
-      await refreshTree();
-    } catch (err) {
-      setTreeError(err.message);
+    } else {
+      // Soft delete — move to trash (with confirmation)
+      if (!window.confirm(t("tree.confirm_move_to_trash", { title }))) return;
+      const trashId = getTrashFolderId(tree);
+      if (!trashId) return;
+      try {
+        if (activeFileId) {
+          const folder = findFolderById(tree?.folders, folderId);
+          if (folder && folderContainsFile(folder, activeFileId)) {
+            setActiveFileId(null);
+            setFileContent(null);
+            draftRef.current = null;
+          }
+        }
+        await updateFolder(projectId, folderId, { parent: trashId });
+        await refreshTree();
+      } catch (err) {
+        setTreeError(err.message);
+      }
     }
   }, [projectId, activeFileId, tree, refreshTree, findFolderById, folderContainsFile]);
 
@@ -380,19 +440,55 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   }, [projectId, tree, refreshTree, findFolderById]);
 
   const handleDeleteText = useCallback(async (fileId, title) => {
-    if (!window.confirm(t("tree.confirm_delete_text", { title }))) return;
+    const inTrash = isTextInsideTrash(tree, fileId);
+    if (inTrash) {
+      // Permanent delete — show confirmation
+      if (!window.confirm(t("trash.confirm_permanent_delete", { title }))) return;
+      try {
+        if (fileId === activeFileId) {
+          setActiveFileId(null);
+          setFileContent(null);
+          draftRef.current = null;
+        }
+        await deleteText(projectId, fileId);
+        await refreshTree();
+      } catch (err) {
+        setTreeError(err.message);
+      }
+    } else {
+      // Soft delete — move to trash (with confirmation)
+      if (!window.confirm(t("tree.confirm_move_to_trash", { title }))) return;
+      const trashId = getTrashFolderId(tree);
+      if (!trashId) return;
+      try {
+        if (fileId === activeFileId) {
+          setActiveFileId(null);
+          setFileContent(null);
+          draftRef.current = null;
+        }
+        await updateText(projectId, fileId, { folder: trashId });
+        await refreshTree();
+      } catch (err) {
+        setTreeError(err.message);
+      }
+    }
+  }, [projectId, activeFileId, tree, refreshTree]);
+
+  const handleEmptyTrash = useCallback(async () => {
+    if (!window.confirm(t("trash.confirm_empty"))) return;
     try {
-      if (fileId === activeFileId) {
+      // If active file is inside trash, clear editor state
+      if (activeFileId && isTextInsideTrash(tree, activeFileId)) {
         setActiveFileId(null);
         setFileContent(null);
         draftRef.current = null;
       }
-      await deleteText(projectId, fileId);
+      await emptyTrash(projectId);
       await refreshTree();
     } catch (err) {
       setTreeError(err.message);
     }
-  }, [projectId, activeFileId, refreshTree]);
+  }, [projectId, activeFileId, tree, refreshTree]);
 
   const handleSaveProperties = useCallback(async (data) => {
     if (!selectedItem || !selectedType) return;
@@ -484,6 +580,7 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
           onRenameText={handleRenameText}
           onChangeFolderIcon={handleChangeFolderIcon}
           onChangeTextIcon={handleChangeTextIcon}
+          onEmptyTrash={handleEmptyTrash}
         />
       )}
     </>

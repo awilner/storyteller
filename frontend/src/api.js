@@ -143,6 +143,9 @@ export const reorderTree = (projectId, folders, texts) =>
     body: JSON.stringify({ folders, texts }),
   });
 
+export const emptyTrash = (projectId) =>
+  request(`${API_BASE}/projects/${projectId}/trash/empty/`, { method: "POST" });
+
 export const fetchFile = (fileId) =>
   request(`${API_BASE}/files/${fileId}/`);
 

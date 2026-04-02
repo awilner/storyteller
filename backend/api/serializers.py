@@ -103,7 +103,7 @@ class FolderTreeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Folder
-        fields = ["id", "title", "order", "icon", "description", "notes", "tags", "target_word_count", "items", "children"]
+        fields = ["id", "title", "order", "icon", "description", "notes", "tags", "target_word_count", "is_trash", "items", "children"]
 
     def get_children(self, obj):
         children = obj.children.all().order_by("order")
@@ -119,7 +119,10 @@ class ProjectTreeSerializer(serializers.ModelSerializer):
 
     def get_folders(self, obj):
         root_folders = obj.folders.filter(parent__isnull=True).order_by("order")
-        return FolderTreeSerializer(root_folders, many=True).data
+        non_trash = [f for f in root_folders if not f.is_trash]
+        trash = [f for f in root_folders if f.is_trash]
+        ordered = non_trash + trash
+        return FolderTreeSerializer(ordered, many=True).data
 
 
 class FileVersionListSerializer(serializers.ModelSerializer):

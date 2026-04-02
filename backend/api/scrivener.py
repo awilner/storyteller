@@ -193,6 +193,7 @@ def import_scrivener_zip(zip_file, user):
 
         # Track folder order at root level
         root_order = 0
+        trash_folder = None
 
         # Walk top-level binder items
         for item in binder.findall("BinderItem"):
@@ -207,9 +208,21 @@ def import_scrivener_zip(zip_file, user):
                 root_order += 1
                 _import_binder_children(children_el, project, docs_dir, manuscript_folder, 0)
 
+            elif item_type == "TrashFolder":
+                trash_folder = Folder.objects.create(
+                    project=project,
+                    title=_("Trash"),
+                    icon="🗑️",
+                    is_trash=True,
+                    order=root_order,
+                )
+                root_order += 1
+                _import_binder_children(children_el, project, docs_dir, trash_folder, 0)
+
             elif item_type == "Folder":
                 title_el = item.find("Title")
                 title = (title_el.text if title_el is not None else "").lower()
+                raw_title = title_el.text if title_el is not None and title_el.text else "Untitled"
                 if "character" in title:
                     char_folder = Folder.objects.create(
                         project=project, title=_("Characters"), icon="👥", order=root_order,
@@ -228,7 +241,57 @@ def import_scrivener_zip(zip_file, user):
                         children_el, project, docs_dir,
                         ProjectFile.FileType.LOCATION, loc_folder,
                     )
+                else:
+                    # Generic top-level folder — import with full hierarchy
+                    item_id = item.get("ID", "")
+                    folder = Folder.objects.create(
+                        project=project,
+                        title=raw_title,
+                        description=_read_synopsis(docs_dir, item_id),
+                        notes=_read_notes(docs_dir, item_id),
+                        order=root_order,
+                    )
+                    root_order += 1
+                    _import_binder_children(children_el, project, docs_dir, folder, 0)
 
-            # Skip ResearchFolder, TrashFolder, Template Sheets, etc.
+            elif item_type in ("ResearchFolder", "TemplateSheetFolder"):
+                # Named special folders — import as generic folders
+                title_el = item.find("Title")
+                raw_title = title_el.text if title_el is not None and title_el.text else item_type
+                item_id = item.get("ID", "")
+                folder = Folder.objects.create(
+                    project=project,
+                    title=raw_title,
+                    description=_read_synopsis(docs_dir, item_id),
+                    notes=_read_notes(docs_dir, item_id),
+                    order=root_order,
+                )
+                root_order += 1
+                _import_binder_children(children_el, project, docs_dir, folder, 0)
+
+            else:
+                # Any other unknown top-level type — import as folder
+                title_el = item.find("Title")
+                raw_title = title_el.text if title_el is not None and title_el.text else item_type or "Untitled"
+                item_id = item.get("ID", "")
+                folder = Folder.objects.create(
+                    project=project,
+                    title=raw_title,
+                    description=_read_synopsis(docs_dir, item_id),
+                    notes=_read_notes(docs_dir, item_id),
+                    order=root_order,
+                )
+                root_order += 1
+                _import_binder_children(children_el, project, docs_dir, folder, 0)
+
+        # Ensure a trash folder exists even if the Scrivener file had none
+        if trash_folder is None:
+            Folder.objects.create(
+                project=project,
+                title=_("Trash"),
+                icon="🗑️",
+                is_trash=True,
+                order=root_order,
+            )
 
     return project

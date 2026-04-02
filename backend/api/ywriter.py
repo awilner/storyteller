@@ -308,4 +308,15 @@ def import_ywriter(uploaded_file, user):
                     order=note_order,
                 )
 
+    # Create empty trash folder
+    next_root_order = project.folders.filter(parent__isnull=True).count()
+    Folder.objects.create(
+        project=project,
+        title=_("Trash"),
+        icon="🗑️",
+        is_trash=True,
+        parent=None,
+        order=next_root_order,
+    )
+
     return project

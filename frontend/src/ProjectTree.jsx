@@ -24,7 +24,10 @@ const FILE_TYPE_ICONS = {
 function toArboristNodes(tree) {
   if (!tree) return [];
 
-  const mapFolder = (folder) => {
+  const mapFolder = (folder, insideTrash = false) => {
+    const isTrash = !!folder.is_trash;
+    const isInsideTrash = insideTrash || isTrash;
+
     const items = [];
     for (const child of folder.children || []) {
       items.push({ ...child, _kind: "folder" });
@@ -36,8 +39,8 @@ function toArboristNodes(tree) {
 
     const children = items.map((item) =>
       item._kind === "folder"
-        ? mapFolder(item)
-        : { id: `text-${item.id}`, name: item.title, _type: "text", _dbId: item.id, _icon: item.icon || "", _data: item }
+        ? mapFolder(item, isInsideTrash)
+        : { id: `text-${item.id}`, name: item.title, _type: "text", _dbId: item.id, _icon: item.icon || "", _data: item, _isInsideTrash: isInsideTrash }
     );
 
     return {
@@ -48,12 +51,17 @@ function toArboristNodes(tree) {
       _dbId: folder.id,
       _icon: folder.icon || "",
       _data: folder,
+      _isTrash: isTrash,
+      _isInsideTrash: isInsideTrash,
     };
   };
 
-  const nodes = (tree.folders || []).slice().sort((a, b) => a.order - b.order).map((f) => mapFolder(f));
+  const allFolders = (tree.folders || []).slice();
+  const nonTrash = allFolders.filter((f) => !f.is_trash).sort((a, b) => a.order - b.order);
+  const trash = allFolders.filter((f) => f.is_trash);
+  const sorted = [...nonTrash, ...trash];
 
-  return nodes;
+  return sorted.map((f) => mapFolder(f));
 }
 
 /* ── Context menu ──────────────────────────────────────────── */
@@ -154,7 +162,7 @@ function Node({ node, style, dragHandle }) {
           {node.isOpen ? "▼" : "▶"}
         </span>
         <span style={iconStyle} onClick={() => node.activate()}>{icon}</span>
-        {node.isEditing ? (
+        {node.isEditing && !data._isTrash ? (
           <input autoFocus type="text" defaultValue={data.name} style={{ flex: 1, fontSize: 13, padding: "1px 4px", border: "1px solid #ccc", borderRadius: 3 }}
             onBlur={(e) => node.submit(e.currentTarget.value)}
             onKeyDown={(e) => { if (e.key === "Enter") node.submit(e.currentTarget.value); if (e.key === "Escape") node.reset(); }} />
@@ -187,7 +195,7 @@ function Node({ node, style, dragHandle }) {
 
 /* ── Main component ────────────────────────────────────────── */
 
-export default function ProjectTree({ tree, onSelectFile, activeFileId, selectedFolderId, onSelectFolder, onAddFolder, onDeleteFolder, onAddText, onDeleteText, onReorder, onRenameFolder, onRenameText, onChangeFolderIcon, onChangeTextIcon }) {
+export default function ProjectTree({ tree, onSelectFile, activeFileId, selectedFolderId, onSelectFolder, onAddFolder, onDeleteFolder, onAddText, onDeleteText, onReorder, onRenameFolder, onRenameText, onChangeFolderIcon, onChangeTextIcon, onEmptyTrash }) {
   const t = useI18n();
   const [menu, setMenu] = useState(null);
   const [iconPicker, setIconPicker] = useState(null);
@@ -267,7 +275,9 @@ export default function ProjectTree({ tree, onSelectFile, activeFileId, selected
     return false;
   }, []);
 
-  const disableDrag = useCallback(() => false, []);
+  const disableDrag = useCallback((node) => {
+    return node._isTrash === true;
+  }, []);
 
   const handleContextMenu = useCallback((e) => {
     e.preventDefault();
@@ -288,28 +298,41 @@ export default function ProjectTree({ tree, onSelectFile, activeFileId, selected
     if (node) {
       const d = node.data;
       if (d._type === "folder") {
-        if (onAddText) items.push({ label: t("tree.new_text"), action: () => { node.open(); const title = window.prompt(t("tree.text_title_prompt")); if (title?.trim()) onAddText(d._dbId, title.trim()); } });
-        if (onAddFolder) items.push({ label: t("tree.new_subfolder"), action: () => { node.open(); const title = window.prompt(t("tree.folder_title_prompt")); if (title?.trim()) onAddFolder(d._dbId, title.trim()); } });
-        items.push({ label: t("tree.rename"), action: () => node.edit() });
-        if (onChangeFolderIcon) {
-          items.push({ separator: true });
-          items.push({ label: t("tree.change_icon"), action: () => { setIconPicker({ x: e.clientX, y: e.clientY, currentIcon: d._icon, onSelect: (icon) => onChangeFolderIcon(d._dbId, icon) }); } });
+        if (d._isTrash) {
+          // Trash folder itself: only "Empty Trash"
+          if (onEmptyTrash) items.push({ label: t("trash.empty_trash"), action: () => onEmptyTrash() });
+        } else if (d._isInsideTrash) {
+          // Folder inside trash: only permanent delete
+          if (onDeleteFolder) { items.push({ label: t("trash.permanently_delete"), danger: true, action: () => onDeleteFolder(d._dbId, d.name) }); }
+        } else {
+          // Normal folder outside trash
+          if (onAddText) items.push({ label: t("tree.new_text"), action: () => { node.open(); const title = window.prompt(t("tree.text_title_prompt")); if (title?.trim()) onAddText(d._dbId, title.trim()); } });
+          if (onAddFolder) items.push({ label: t("tree.new_subfolder"), action: () => { node.open(); const title = window.prompt(t("tree.folder_title_prompt")); if (title?.trim()) onAddFolder(d._dbId, title.trim()); } });
+          items.push({ label: t("tree.rename"), action: () => node.edit() });
+          if (onChangeFolderIcon) {
+            items.push({ separator: true });
+            items.push({ label: t("tree.change_icon"), action: () => { setIconPicker({ x: e.clientX, y: e.clientY, currentIcon: d._icon, onSelect: (icon) => onChangeFolderIcon(d._dbId, icon) }); } });
+          }
+          if (onDeleteFolder) { items.push({ separator: true }); items.push({ label: t("tree.delete_folder"), danger: true, action: () => onDeleteFolder(d._dbId, d.name) }); }
         }
-        if (onDeleteFolder) { items.push({ separator: true }); items.push({ label: t("tree.delete_folder"), danger: true, action: () => onDeleteFolder(d._dbId, d.name) }); }
       } else if (d._type === "text") {
-        items.push({ label: t("tree.rename"), action: () => node.edit() });
-        if (onChangeTextIcon) {
-          items.push({ separator: true });
-          items.push({ label: t("tree.change_icon"), action: () => { setIconPicker({ x: e.clientX, y: e.clientY, currentIcon: d._icon, onSelect: (icon) => onChangeTextIcon(d._dbId, icon) }); } });
+        if (d._isInsideTrash) {
+          if (onDeleteText) { items.push({ label: t("trash.permanently_delete"), danger: true, action: () => onDeleteText(d._dbId, d.name) }); }
+        } else {
+          items.push({ label: t("tree.rename"), action: () => node.edit() });
+          if (onChangeTextIcon) {
+            items.push({ separator: true });
+            items.push({ label: t("tree.change_icon"), action: () => { setIconPicker({ x: e.clientX, y: e.clientY, currentIcon: d._icon, onSelect: (icon) => onChangeTextIcon(d._dbId, icon) }); } });
+          }
+          if (onDeleteText) { items.push({ separator: true }); items.push({ label: t("tree.delete_text"), danger: true, action: () => onDeleteText(d._dbId, d.name) }); }
         }
-        if (onDeleteText) { items.push({ separator: true }); items.push({ label: t("tree.delete_text"), danger: true, action: () => onDeleteText(d._dbId, d.name) }); }
       }
     } else {
       if (onAddFolder) items.push({ label: t("tree.new_folder"), action: () => onAddFolder(null) });
     }
 
     if (items.length) setMenu({ x: e.clientX, y: e.clientY, items });
-  }, [t, onAddText, onAddFolder, onDeleteFolder, onDeleteText, onChangeFolderIcon, onChangeTextIcon]);
+  }, [t, onAddText, onAddFolder, onDeleteFolder, onDeleteText, onChangeFolderIcon, onChangeTextIcon, onEmptyTrash]);
 
   const handleRename = useCallback(({ id, name }) => {
     if (!name?.trim()) return;

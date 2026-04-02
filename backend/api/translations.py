@@ -72,8 +72,9 @@ def _get_ui_strings():
         "tree.new_subfolder": _("New subfolder"),
         "tree.new_folder": _("New folder"),
         "tree.rename": _("Rename"),
-        "tree.delete_folder": _("Delete folder"),
-        "tree.delete_text": _("Delete text"),
+        "tree.delete_folder": _("Move to Trash"),
+        "tree.delete_text": _("Move to Trash"),
+        "tree.confirm_move_to_trash": _('Move "%(title)s" to Trash?'),
         "tree.folder_title_prompt": _("Folder title:"),
         "tree.text_title_prompt": _("Text title:"),
         "tree.confirm_delete_folder": _('Delete "%(title)s" and all its contents?'),
@@ -159,6 +160,14 @@ def _get_ui_strings():
         "toolbar.code": _("Code"),
         "toolbar.link": _("Link"),
         "toolbar.enter_url": _("Enter URL:"),
+
+        # Trash
+        "trash.title": _("Trash"),
+        "trash.empty_trash": _("Empty Trash"),
+        "trash.permanently_delete": _("Permanently Delete"),
+        "trash.confirm_empty": _("Permanently delete all items in the trash? This cannot be undone."),
+        "trash.confirm_permanent_delete": _('Permanently delete "%(title)s"? This cannot be undone.'),
+        "trash.confirm_permanent_delete_folder": _('Permanently delete "%(title)s" and all its contents? This cannot be undone.'),
     }
 
 

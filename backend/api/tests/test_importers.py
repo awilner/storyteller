@@ -272,11 +272,14 @@ class ScrivenerImportTests(TestCase):
     def test_folders_created(self):
         project = import_scrivener_zip(_scrivener_zip(), self.user)
         root_folders = list(project.folders.filter(parent__isnull=True).order_by("order"))
-        self.assertEqual(len(root_folders), 3)  # Manuscript, Characters, Locations
-        self.assertEqual(root_folders[0].title, "Manuscript")
-        self.assertEqual(root_folders[0].icon, "📖")
+        # Manuscript, Characters, Locations + Trash
+        self.assertEqual(len(root_folders), 4)
+        non_trash = [f for f in root_folders if not f.is_trash]
+        self.assertEqual(len(non_trash), 3)
+        self.assertEqual(non_trash[0].title, "Manuscript")
+        self.assertEqual(non_trash[0].icon, "📖")
         # Chapter folders are children of Manuscript
-        chapters = list(root_folders[0].children.order_by("order"))
+        chapters = list(non_trash[0].children.order_by("order"))
         self.assertEqual(len(chapters), 2)
         self.assertEqual(chapters[0].title, "Chapter One")
         self.assertEqual(chapters[1].title, "Chapter Two")
@@ -375,12 +378,13 @@ class YWriterImportTests(TestCase):
     def test_folders_from_chapters(self):
         project = import_ywriter(_ywriter_zip(), self.user)
         root_folders = list(project.folders.filter(parent__isnull=True).order_by("order"))
-        # Manuscript + Characters + Locations + Items + Notes
-        self.assertEqual(len(root_folders), 5)
-        self.assertEqual(root_folders[0].title, "Manuscript")
-        self.assertEqual(root_folders[0].icon, "📖")
+        # Manuscript + Characters + Locations + Items + Notes + Trash
+        non_trash = [f for f in root_folders if not f.is_trash]
+        self.assertEqual(len(non_trash), 5)
+        self.assertEqual(non_trash[0].title, "Manuscript")
+        self.assertEqual(non_trash[0].icon, "📖")
         # Chapters are children of Manuscript
-        chapters = list(root_folders[0].children.order_by("order"))
+        chapters = list(non_trash[0].children.order_by("order"))
         self.assertEqual(len(chapters), 2)
         self.assertEqual(chapters[0].title, "Chapter One")
         self.assertEqual(chapters[0].description, "First chapter")

@@ -51,7 +51,8 @@ class ProjectTreeTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertEqual(data["title"], "Novel")
-        self.assertEqual(len(data["folders"]), 4)
+        # 4 user folders + 1 auto-created trash folder
+        self.assertEqual(len(data["folders"]), 5)
 
         f1_data = next(f for f in data["folders"] if f["id"] == self.f1.pk)
         self.assertEqual(len(f1_data["items"]), 1)
@@ -85,7 +86,9 @@ class ProjectTreeTests(TestCase):
         resp = self.client.get(f"/api/projects/{empty.pk}/tree/")
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
-        self.assertEqual(data["folders"], [])
+        # Auto-created trash folder should be present
+        self.assertEqual(len(data["folders"]), 1)
+        self.assertTrue(data["folders"][0]["is_trash"])
 
     def test_tree_response_is_json(self):
         """Verify we get JSON, not HTML (regression for BrowsableAPI bug)."""
@@ -161,9 +164,10 @@ class NestedFolderTreeTests(TestCase):
         resp = self.client.get(f"/api/projects/{self.project.pk}/tree/")
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
-        # Only root folders at top level
-        self.assertEqual(len(data["folders"]), 1)
-        root_data = data["folders"][0]
+        # Root folder + auto-created trash folder at top level
+        non_trash = [f for f in data["folders"] if not f.get("is_trash")]
+        self.assertEqual(len(non_trash), 1)
+        root_data = non_trash[0]
         self.assertEqual(root_data["title"], "Act 1")
         self.assertEqual(len(root_data["items"]), 1)
         self.assertEqual(root_data["items"][0]["title"], "Prologue")

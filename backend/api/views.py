@@ -306,6 +306,24 @@ def project_tree_view(request, project_pk):
         ),
         pk=project_pk,
     )
+    # Auto-create trash folder if missing
+    if not project.folders.filter(is_trash=True).exists():
+        Folder.objects.create(
+            project=project,
+            is_trash=True,
+            title=_("Trash"),
+            icon="🗑️",
+            parent=None,
+            order=9999,
+        )
+        # Re-fetch to include the new folder in prefetched data
+        project = Project.objects.prefetch_related(
+            "folders__texts",
+            "folders__children__texts",
+            "folders__children__children__texts",
+            "folders__children__children__children__texts",
+            "files",
+        ).get(pk=project_pk)
     return Response(ProjectTreeSerializer(project).data)
 
 
@@ -331,6 +349,11 @@ def folder_detail_view(request, project_pk, folder_pk):
     folder = get_object_or_404(Folder, pk=folder_pk, project_id=project_pk)
 
     if request.method == "DELETE":
+        if folder.is_trash:
+            return Response(
+                {"detail": _("Cannot delete the trash folder.")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         folder.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -534,6 +557,22 @@ def reorder_view(request, project_pk):
             text.save()
 
     return Response({"detail": _("Reordered.")})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated, IsProjectOwner])
+def empty_trash_view(request, project_pk):
+    """Delete all contents of the project's trash folder."""
+    project = get_object_or_404(Project, pk=project_pk)
+    trash_folder = project.folders.filter(is_trash=True).first()
+    if not trash_folder:
+        return Response(
+            {"detail": _("Trash folder not found.")},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    Folder.objects.filter(parent=trash_folder).delete()
+    ProjectFile.objects.filter(folder=trash_folder).delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ── Scrivener import ──────────────────────────────────────────

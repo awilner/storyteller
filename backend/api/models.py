@@ -51,6 +51,10 @@ class Folder(models.Model):
     target_word_count = models.PositiveIntegerField(null=True, blank=True)
     icon = models.CharField(max_length=10, blank=True, default="")
     order = models.PositiveIntegerField(default=0)
+    is_trash = models.BooleanField(
+        default=False,
+        help_text="Whether this folder is the project's trash folder.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -3,6 +3,7 @@ from .translations import translations_view
 from .views import (
     change_password_view,
     config_view,
+    empty_trash_view,
     file_cache_view,
     file_detail_view,
     file_version_detail_view,
@@ -54,6 +55,7 @@ urlpatterns = [
     path("projects/<int:project_pk>/folders/<int:folder_pk>/texts/", text_create_view, name="text-create"),
     path("projects/<int:project_pk>/texts/<int:file_pk>/", text_detail_view, name="text-detail"),
     path("projects/<int:project_pk>/reorder/", reorder_view, name="project-reorder"),
+    path("projects/<int:project_pk>/trash/empty/", empty_trash_view, name="trash-empty"),
     path("projects/import/scrivener/", scrivener_import_view, name="scrivener-import"),
     path("projects/import/ywriter/", ywriter_import_view, name="ywriter-import"),
     path("files/<int:file_pk>/", file_detail_view, name="file-detail"),
