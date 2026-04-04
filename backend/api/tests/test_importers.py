@@ -189,9 +189,10 @@ Second paragraph.]]></SceneContent>
 """
 
 
-def _ywriter_zip(yw7_xml=None):
-    """Build a minimal yWriter7 .zip."""
-    return _make_zip({"novel/novel.yw7": yw7_xml or MINIMAL_YW7})
+def _ywriter_file(yw7_xml=None):
+    """Build a minimal yWriter7 .yw7 uploaded file."""
+    content = (yw7_xml or MINIMAL_YW7).encode("utf-8")
+    return SimpleUploadedFile("novel.yw7", content, content_type="application/xml")
 
 
 # ── BBCode-to-Markdown unit tests ────────────────────────────
@@ -370,13 +371,13 @@ class YWriterImportTests(TestCase):
         self.user = User.objects.create_user(username="alice", password="pw")
 
     def test_basic_import(self):
-        project = import_ywriter(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_file(), self.user)
         self.assertEqual(project.title, "Test Novel")
         self.assertEqual(project.description, "A test project")
         self.assertEqual(project.owner, self.user)
 
     def test_folders_from_chapters(self):
-        project = import_ywriter(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_file(), self.user)
         root_folders = list(project.folders.filter(parent__isnull=True).order_by("order"))
         # Manuscript + Characters + Locations + Items + Notes + Trash
         non_trash = [f for f in root_folders if not f.is_trash]
@@ -391,7 +392,7 @@ class YWriterImportTests(TestCase):
         self.assertEqual(chapters[1].title, "Chapter Two")
 
     def test_texts_from_scenes(self):
-        project = import_ywriter(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_file(), self.user)
         ch1 = project.folders.get(title="Chapter One")
         texts = list(ch1.texts.order_by("order"))
         # Scene 2 is unused, so only scene 1 should be imported
@@ -399,51 +400,51 @@ class YWriterImportTests(TestCase):
         self.assertEqual(texts[0].title, "Opening")
 
     def test_unused_scenes_skipped(self):
-        project = import_ywriter(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_file(), self.user)
         self.assertFalse(
             project.files.filter(title="Unused Scene").exists()
         )
 
     def test_bbcode_italic_converted(self):
-        project = import_ywriter(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_file(), self.user)
         opening = project.files.get(title="Opening")
         self.assertIn("*world*", opening.content)
         self.assertNotIn("[i]", opening.content)
 
     def test_bbcode_bold_converted(self):
-        project = import_ywriter(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_file(), self.user)
         finale = project.files.get(title="Finale")
         self.assertIn("**Bold**", finale.content)
         self.assertNotIn("[b]", finale.content)
 
     def test_bbcode_strikethrough_converted(self):
-        project = import_ywriter(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_file(), self.user)
         finale = project.files.get(title="Finale")
         self.assertIn("~~struck~~", finale.content)
         self.assertNotIn("[s]", finale.content)
 
     def test_newlines_converted_to_paragraphs(self):
-        project = import_ywriter(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_file(), self.user)
         opening = project.files.get(title="Opening")
         # Single \n in source should become \n\n
         self.assertIn("\n\n", opening.content)
         self.assertIn("Second paragraph.", opening.content)
 
     def test_scene_description_and_notes(self):
-        project = import_ywriter(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_file(), self.user)
         opening = project.files.get(title="Opening")
         self.assertEqual(opening.description, "Scene synopsis")
         self.assertEqual(opening.notes, "Author note")
 
     def test_characters_imported(self):
-        project = import_ywriter(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_file(), self.user)
         chars = list(project.files.filter(file_type="character").order_by("order"))
         self.assertEqual(len(chars), 2)
         self.assertEqual(chars[0].title, "Hero")
         self.assertEqual(chars[1].title, "Sidekick")
 
     def test_character_content_assembled(self):
-        project = import_ywriter(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_file(), self.user)
         hero = project.files.get(title="Hero")
         self.assertIn("**Full Name:** John Doe", hero.content)
         self.assertIn("**Description:** Brave", hero.content)
@@ -452,20 +453,20 @@ class YWriterImportTests(TestCase):
 
     def test_character_minimal_fields(self):
         """Character with only a title should still import cleanly."""
-        project = import_ywriter(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_file(), self.user)
         sidekick = project.files.get(title="Sidekick")
         # No fullname/desc/bio, so content should be empty
         self.assertEqual(sidekick.content, "")
 
     def test_locations_imported(self):
-        project = import_ywriter(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_file(), self.user)
         locs = list(project.files.filter(file_type="location"))
         self.assertEqual(len(locs), 1)
         self.assertEqual(locs[0].title, "Village")
         self.assertEqual(locs[0].description, "A small village")
 
     def test_items_imported(self):
-        project = import_ywriter(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_file(), self.user)
         items_folder = project.folders.get(title="Items")
         self.assertEqual(items_folder.icon, "🧰")
         items = list(items_folder.texts.order_by("order"))
@@ -475,7 +476,7 @@ class YWriterImportTests(TestCase):
         self.assertEqual(items[0].file_type, "item")
 
     def test_project_notes_imported(self):
-        project = import_ywriter(_ywriter_zip(), self.user)
+        project = import_ywriter(_ywriter_file(), self.user)
         notes_folder = project.folders.get(title="Notes")
         self.assertEqual(notes_folder.icon, "📒")
         notes = list(notes_folder.texts.order_by("order"))
@@ -485,18 +486,11 @@ class YWriterImportTests(TestCase):
         self.assertEqual(notes[1].title, "Research")
         self.assertEqual(notes[1].content, "Medieval weapons")
 
-    def test_no_yw7_raises(self):
-        bad_zip = _make_zip({"readme.txt": "nothing"})
+    def test_invalid_xml_raises(self):
+        bad_file = SimpleUploadedFile("bad.yw7", b"not xml at all", content_type="application/xml")
         with self.assertRaises(ValueError) as ctx:
-            import_ywriter(bad_zip, self.user)
+            import_ywriter(bad_file, self.user)
         self.assertIn(".yw7", str(ctx.exception))
-
-    def test_direct_yw7_import(self):
-        """Importing a raw .yw7 file (not zipped) should work."""
-        uploaded = SimpleUploadedFile("novel.yw7", MINIMAL_YW7.encode("utf-8"), content_type="application/xml")
-        project = import_ywriter(uploaded, self.user)
-        self.assertEqual(project.title, "Test Novel")
-        self.assertTrue(project.folders.filter(title="Manuscript").exists())
 
     def test_chapter_sort_order_respected(self):
         """Chapters should be ordered by SortOrder, not by ID."""
@@ -505,7 +499,7 @@ class YWriterImportTests(TestCase):
             "<SortOrder>1</SortOrder>\n      <Scenes><ScID>1</ScID><ScID>2</ScID></Scenes>",
             "<SortOrder>5</SortOrder>\n      <Scenes><ScID>1</ScID><ScID>2</ScID></Scenes>",
         )
-        project = import_ywriter(_ywriter_zip(xml), self.user)
+        project = import_ywriter(_ywriter_file(xml), self.user)
         manuscript = project.folders.get(title="Manuscript")
         chapters = list(manuscript.children.order_by("order"))
         # Chapter Two (sort=2) should come before Chapter One (sort=5)
@@ -524,7 +518,7 @@ class YWriterImportViewTests(TestCase):
     def test_import_success(self):
         resp = self.client.post(
             "/api/projects/import/ywriter/",
-            {"file": _ywriter_zip()},
+            {"file": _ywriter_file()},
             format="multipart",
         )
         self.assertEqual(resp.status_code, 201)
@@ -538,16 +532,16 @@ class YWriterImportViewTests(TestCase):
         self.client.logout()
         resp = self.client.post(
             "/api/projects/import/ywriter/",
-            {"file": _ywriter_zip()},
+            {"file": _ywriter_file()},
             format="multipart",
         )
         self.assertEqual(resp.status_code, 403)
 
-    def test_import_bad_zip(self):
-        bad_zip = _make_zip({"readme.txt": "no yw7 here"})
+    def test_import_bad_file(self):
+        bad_file = SimpleUploadedFile("bad.yw7", b"not xml", content_type="application/xml")
         resp = self.client.post(
             "/api/projects/import/ywriter/",
-            {"file": bad_zip},
+            {"file": bad_file},
             format="multipart",
         )
         self.assertEqual(resp.status_code, 400)

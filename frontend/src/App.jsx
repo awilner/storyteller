@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { fetchMe, fetchProjects, createProject, deleteProject, updateProject, logout, fetchConfig } from "./api";
+import { useState, useEffect, useRef } from "react";
+import { fetchMe, fetchProjects, createProject, deleteProject, updateProject, logout, fetchConfig, exportScrivener, exportYWriter } from "./api";
 import AuthForm from "./AuthForm";
 import EditorView from "./EditorView";
 import ImportModal from "./ImportModal";
@@ -41,6 +41,20 @@ export default function App() {
   const [editingProjectId, setEditingProjectId] = useState(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [menuProjectId, setMenuProjectId] = useState(null);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (menuProjectId === null) return;
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuProjectId(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuProjectId]);
+
   const [page, setPage] = useState(() => {
     const p = window.location.pathname;
     if (p === "/account") return "account";
@@ -275,6 +289,15 @@ export default function App() {
                     <button type="button" onClick={() => setSelectedProjectId(p.id)} className="btn btn-primary">Open</button>
                     <button type="button" onClick={() => startEditing(p)} className="btn btn-secondary">Edit</button>
                     <button type="button" onClick={() => handleDeleteProject(p.id, p.title)} className="btn btn-danger">Delete</button>
+                    <div className="project-menu-wrapper" ref={menuProjectId === p.id ? menuRef : undefined}>
+                      <button type="button" className="btn btn-ghost project-menu-btn" onClick={() => setMenuProjectId(menuProjectId === p.id ? null : p.id)} aria-label="More actions">⋯</button>
+                      {menuProjectId === p.id && (
+                        <div className="project-menu-dropdown">
+                          <button type="button" className="topbar-dropdown-item" onClick={() => { setMenuProjectId(null); window.location.href = exportScrivener(p.id); }}>Export as Scrivener</button>
+                          <button type="button" className="topbar-dropdown-item" onClick={() => { setMenuProjectId(null); window.location.href = exportYWriter(p.id); }}>Export as yWriter</button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

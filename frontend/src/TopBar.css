@@ -37,6 +37,22 @@
   min-width: 0;
 }
 
+.topbar-project-wrapper { position: relative; }
+
+.topbar-project-btn {
+  background: none;
+  border: none;
+  font-size: 13px;
+  color: #555;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.topbar-project-btn:hover { background: #f0f0f0; }
+
 .topbar-spacer { flex: 1; }
 
 .topbar-hamburger {

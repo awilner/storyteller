@@ -4,6 +4,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.db import transaction
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext as _
 from rest_framework import status
@@ -11,6 +12,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from .exporters import export_scrivener, export_ywriter
 from .models import FileVersion, Folder, OIDCIdentity, Project, ProjectFile
 from .oidc import exchange_code_for_claims, get_authorization_url
 from .permissions import IsProjectOwner
@@ -605,7 +607,7 @@ def scrivener_import_view(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def ywriter_import_view(request):
-    """Import a yWriter7 .yw7 zip file as a new project."""
+    """Import a yWriter7 .yw7 file as a new project."""
     uploaded = request.FILES.get("file")
     if not uploaded:
         return Response(
@@ -623,3 +625,29 @@ def ywriter_import_view(request):
         ProjectListSerializer(project).data,
         status=status.HTTP_201_CREATED,
     )
+
+
+# ── Export ────────────────────────────────────────────────────
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated, IsProjectOwner])
+def export_scrivener_view(request, project_pk):
+    """Export a project as a Scrivener .scriv.zip file."""
+    project = get_object_or_404(Project, pk=project_pk)
+    data = export_scrivener(project)
+    safe_title = project.title.replace('"', "'")
+    response = HttpResponse(data, content_type="application/zip")
+    response["Content-Disposition"] = f'attachment; filename="{safe_title}.scriv.zip"'
+    return response
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated, IsProjectOwner])
+def export_ywriter_view(request, project_pk):
+    """Export a project as a yWriter7 .yw7 file."""
+    project = get_object_or_404(Project, pk=project_pk)
+    data = export_ywriter(project)
+    safe_title = project.title.replace('"', "'")
+    response = HttpResponse(data, content_type="application/xml")
+    response["Content-Disposition"] = f'attachment; filename="{safe_title}.yw7"'
+    return response

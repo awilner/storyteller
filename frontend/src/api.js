@@ -210,3 +210,11 @@ export const importYWriter = async (file) => {
   }
   return data;
 };
+
+
+// Export helpers (file download)
+export const exportScrivener = (projectId) =>
+  `${API_BASE}/projects/${projectId}/export/scrivener/`;
+
+export const exportYWriter = (projectId) =>
+  `${API_BASE}/projects/${projectId}/export/ywriter/`;

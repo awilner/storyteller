@@ -3,21 +3,26 @@ import { useI18n } from "./I18nContext";
 import logoSrc from "../resources/Storyteller.svg";
 import "./TopBar.css";
 
-export default function TopBar({ projectTitle, onHome, username, onAccount, onSettings, onLogout }) {
+export default function TopBar({ projectTitle, onHome, username, onAccount, onSettings, onLogout, onExportScrivener, onExportYWriter }) {
   const t = useI18n();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
+  const userRef = useRef(null);
+  const projectRef = useRef(null);
 
   useEffect(() => {
-    if (!dropdownOpen) return;
+    if (!userDropdownOpen && !projectDropdownOpen) return;
     const handler = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setDropdownOpen(false);
+      if (userDropdownOpen && userRef.current && !userRef.current.contains(e.target)) {
+        setUserDropdownOpen(false);
+      }
+      if (projectDropdownOpen && projectRef.current && !projectRef.current.contains(e.target)) {
+        setProjectDropdownOpen(false);
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [dropdownOpen]);
+  }, [userDropdownOpen, projectDropdownOpen]);
 
   const logoClass = `topbar-logo${onHome ? " topbar-logo-clickable" : ""}`;
 
@@ -28,27 +33,51 @@ export default function TopBar({ projectTitle, onHome, username, onAccount, onSe
       {projectTitle && (
         <>
           <span className="topbar-separator">/</span>
-          <span className="topbar-context">{projectTitle}</span>
+          {(onExportScrivener || onExportYWriter) ? (
+            <div ref={projectRef} className="topbar-project-wrapper">
+              <button type="button" className="topbar-project-btn" onClick={() => setProjectDropdownOpen((v) => !v)}>
+                {projectTitle} ▾
+              </button>
+              {projectDropdownOpen && (
+                <div className="topbar-dropdown">
+                  {onExportScrivener && (
+                    <button type="button" className="topbar-dropdown-item"
+                      onClick={() => { setProjectDropdownOpen(false); onExportScrivener(); }}>
+                      {t("topbar.export_scrivener")}
+                    </button>
+                  )}
+                  {onExportYWriter && (
+                    <button type="button" className="topbar-dropdown-item"
+                      onClick={() => { setProjectDropdownOpen(false); onExportYWriter(); }}>
+                      {t("topbar.export_ywriter")}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <span className="topbar-context">{projectTitle}</span>
+          )}
         </>
       )}
       {username && (
         <>
           <div className="topbar-spacer" />
-          <div ref={dropdownRef} className="topbar-user-wrapper">
-            <button type="button" className="topbar-user-btn" onClick={() => setDropdownOpen((v) => !v)}>
+          <div ref={userRef} className="topbar-user-wrapper">
+            <button type="button" className="topbar-user-btn" onClick={() => setUserDropdownOpen((v) => !v)}>
               {username} ▾
             </button>
-            {dropdownOpen && (
+            {userDropdownOpen && (
               <div className="topbar-dropdown">
                 {onAccount && (
                   <button type="button" className="topbar-dropdown-item"
-                    onClick={() => { setDropdownOpen(false); onAccount(); }}>
+                    onClick={() => { setUserDropdownOpen(false); onAccount(); }}>
                     {t("topbar.account") || "Account"}
                   </button>
                 )}
                 {onSettings && (
                   <button type="button" className="topbar-dropdown-item"
-                    onClick={() => { setDropdownOpen(false); onSettings(); }}>
+                    onClick={() => { setUserDropdownOpen(false); onSettings(); }}>
                     {t("topbar.settings") || "Settings"}
                   </button>
                 )}
@@ -56,7 +85,7 @@ export default function TopBar({ projectTitle, onHome, username, onAccount, onSe
                   <>
                     <div className="section-divider" />
                     <button type="button" className="topbar-dropdown-item topbar-dropdown-item--danger"
-                      onClick={() => { setDropdownOpen(false); onLogout(); }}>
+                      onClick={() => { setUserDropdownOpen(false); onLogout(); }}>
                       {t("topbar.logout") || "Log out"}
                     </button>
                   </>

@@ -118,6 +118,8 @@ def _get_ui_strings():
         "topbar.account": _("Account"),
         "topbar.settings": _("Settings"),
         "topbar.logout": _("Log out"),
+        "topbar.export_scrivener": _("Export as Scrivener"),
+        "topbar.export_ywriter": _("Export as yWriter"),
 
         # Account page
         "account.title": _("Account"),

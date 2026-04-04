@@ -9,7 +9,7 @@ import FormattingToolbar from "./FormattingToolbar";
 import FolderView from "./FolderView";
 import VersionHistoryPanel from "./VersionHistoryPanel";
 import PropertiesPanel from "./PropertiesPanel";
-import { fetchProjectTree, fetchFile, saveDraftCache, createVersion, createFolder, deleteFolder, createText, deleteText, updateFolder, updateText, reorderTree, emptyTrash } from "./api";
+import { fetchProjectTree, fetchFile, saveDraftCache, createVersion, createFolder, deleteFolder, createText, deleteText, updateFolder, updateText, reorderTree, emptyTrash, exportScrivener, exportYWriter } from "./api";
 import "./EditorView.css";
 
 const DEBOUNCE_MS = 2000;
@@ -490,6 +490,14 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
     }
   }, [projectId, activeFileId, tree, refreshTree]);
 
+  const handleExportScrivener = useCallback(() => {
+    window.location.href = exportScrivener(projectId);
+  }, [projectId]);
+
+  const handleExportYWriter = useCallback(() => {
+    window.location.href = exportYWriter(projectId);
+  }, [projectId]);
+
   const handleSaveProperties = useCallback(async (data) => {
     if (!selectedItem || !selectedType) return;
     if (selectedType === "folder") {
@@ -664,7 +672,7 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   if (isMobile) {
     return (
       <div className="editor-mobile-wrapper">
-        <TopBar projectTitle={tree?.title} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} />
+        <TopBar projectTitle={tree?.title} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} onExportScrivener={handleExportScrivener} onExportYWriter={handleExportYWriter} />
         <div className="editor-mobile-tabs">
           <button type="button" className={`editor-mobile-tab${mobilePanel === "tree" ? " editor-mobile-tab--active" : ""}`} onClick={() => setMobilePanel("tree")}>📁 Tree</button>
           <button type="button" className={`editor-mobile-tab${mobilePanel === "editor" ? " editor-mobile-tab--active" : ""}`} onClick={() => setMobilePanel("editor")}>✏️ Editor</button>
@@ -682,7 +690,7 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   // ── Desktop layout ─────────────────────────────────────────
   return (
     <div className="editor-desktop-wrapper">
-      <TopBar projectTitle={tree?.title} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} />
+      <TopBar projectTitle={tree?.title} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} onExportScrivener={handleExportScrivener} onExportYWriter={handleExportYWriter} />
       <div className="editor-desktop-body">
         <div className="editor-sidebar">{sidebarContent}</div>
         {editorContent}

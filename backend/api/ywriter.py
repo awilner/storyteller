@@ -1,5 +1,5 @@
 """
-yWriter7 project (.yw7 inside a .zip) importer.
+yWriter7 project (.yw7) importer.
 
 Parses the .yw7 XML and imports Chapters as Folders, Scenes as Texts,
 Characters as CHARACTER ProjectFiles, and Locations as LOCATION ProjectFiles.
@@ -9,7 +9,6 @@ import os
 import re
 import tempfile
 import xml.etree.ElementTree as ET
-import zipfile
 
 from django.utils.translation import gettext as _
 
@@ -89,7 +88,7 @@ def _int_text(element, tag, default=0):
 
 def import_ywriter(uploaded_file, user):
     """
-    Import a yWriter7 file (.yw7 or .zip containing a .yw7) and return the created Project.
+    Import a yWriter7 .yw7 file and return the created Project.
 
     Args:
         uploaded_file: An uploaded file (InMemoryUploadedFile or similar).
@@ -100,40 +99,22 @@ def import_ywriter(uploaded_file, user):
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         # Save the uploaded file
-        tmp_path = os.path.join(tmpdir, uploaded_file.name or "upload")
+        tmp_path = os.path.join(tmpdir, uploaded_file.name or "upload.yw7")
         with open(tmp_path, "wb") as f:
             for chunk in uploaded_file.chunks():
                 f.write(chunk)
 
-        # Determine if it's a zip or a raw .yw7
-        yw7_path = None
-        if zipfile.is_zipfile(tmp_path):
-            with zipfile.ZipFile(tmp_path, "r") as zf:
-                zf.extractall(tmpdir)
-            for root_dir, _dirs, files in os.walk(tmpdir):
-                for fname in files:
-                    if fname.endswith(".yw7"):
-                        yw7_path = os.path.join(root_dir, fname)
-                        break
-                if yw7_path:
-                    break
-        elif tmp_path.endswith(".yw7") or uploaded_file.name.endswith(".yw7"):
-            yw7_path = tmp_path
-        else:
-            # Try parsing as XML directly — might be a .yw7 with wrong extension
-            yw7_path = tmp_path
-
-        if not yw7_path or not os.path.isfile(yw7_path):
-            raise ValueError("No .yw7 file found in the uploaded file.")
-
-        tree = ET.parse(yw7_path)
+        try:
+            tree = ET.parse(tmp_path)
+        except ET.ParseError:
+            raise ValueError("Invalid .yw7 file: could not parse XML.")
         root_el = tree.getroot()
 
         # Project title from <PROJECT><Title>
         proj_el = root_el.find("PROJECT")
         project_title = _cdata_text(proj_el, "Title") if proj_el is not None else ""
         if not project_title:
-            project_title = os.path.splitext(os.path.basename(yw7_path))[0]
+            project_title = os.path.splitext(uploaded_file.name or "Untitled")[0]
 
         project = Project.objects.create(
             owner=user,

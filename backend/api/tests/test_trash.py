@@ -350,7 +350,7 @@ class YWriterTrashImportTests(TestCase):
   </SCENES>
 </YWRITER7>
 """
-        uploaded = _make_zip({"novel/novel.yw7": yw7_xml})
+        uploaded = SimpleUploadedFile("novel.yw7", yw7_xml.encode("utf-8"), content_type="application/xml")
         project = import_ywriter(uploaded, self.user)
         trash = project.folders.filter(is_trash=True)
         self.assertEqual(trash.count(), 1)
