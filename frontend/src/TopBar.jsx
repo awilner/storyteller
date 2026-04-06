@@ -3,7 +3,7 @@ import { useI18n } from "./I18nContext";
 import logoSrc from "../resources/Storyteller.svg";
 import "./TopBar.css";
 
-export default function TopBar({ projectTitle, onHome, username, onAccount, onSettings, onLogout, onExportScrivener, onExportYWriter }) {
+export default function TopBar({ projectTitle, onHome, username, onAccount, onSettings, onLogout, onExportScrivener, onExportYWriter, onCompile, onProjectSettings }) {
   const t = useI18n();
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
@@ -26,6 +26,8 @@ export default function TopBar({ projectTitle, onHome, username, onAccount, onSe
 
   const logoClass = `topbar-logo${onHome ? " topbar-logo-clickable" : ""}`;
 
+  const hasProjectMenu = onExportScrivener || onExportYWriter || onCompile || onProjectSettings;
+
   return (
     <div className="topbar">
       <img src={logoSrc} alt="" style={{ height: 24 }} className={onHome ? "topbar-logo-clickable" : ""} onClick={onHome || undefined} />
@@ -33,13 +35,28 @@ export default function TopBar({ projectTitle, onHome, username, onAccount, onSe
       {projectTitle && (
         <>
           <span className="topbar-separator">/</span>
-          {(onExportScrivener || onExportYWriter) ? (
+          {hasProjectMenu ? (
             <div ref={projectRef} className="topbar-project-wrapper">
               <button type="button" className="topbar-project-btn" onClick={() => setProjectDropdownOpen((v) => !v)}>
                 {projectTitle} ▾
               </button>
               {projectDropdownOpen && (
                 <div className="topbar-dropdown">
+                  {onCompile && (
+                    <button type="button" className="topbar-dropdown-item"
+                      onClick={() => { setProjectDropdownOpen(false); onCompile(); }}>
+                      {t("topbar.compile_manuscript")}
+                    </button>
+                  )}
+                  {onProjectSettings && (
+                    <button type="button" className="topbar-dropdown-item"
+                      onClick={() => { setProjectDropdownOpen(false); onProjectSettings(); }}>
+                      {t("topbar.project_settings")}
+                    </button>
+                  )}
+                  {(onCompile || onProjectSettings) && (onExportScrivener || onExportYWriter) && (
+                    <div className="section-divider" />
+                  )}
                   {onExportScrivener && (
                     <button type="button" className="topbar-dropdown-item"
                       onClick={() => { setProjectDropdownOpen(false); onExportScrivener(); }}>

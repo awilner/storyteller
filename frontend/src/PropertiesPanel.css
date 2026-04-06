@@ -38,3 +38,9 @@
 .props-save-btn--inactive { background: #e0e0e0; color: #888; cursor: default; }
 .props-status { font-size: 11px; color: #888; margin-top: 4px; }
 .props-error { font-size: 11px; color: #c44; margin-top: 4px; }
+
+.props-colour-input {
+  height: 32px;
+  padding: 2px;
+  cursor: pointer;
+}

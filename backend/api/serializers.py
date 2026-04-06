@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
-from .models import FileVersion, Folder, Project, ProjectFile
+from .models import CompileLayout, FileVersion, Folder, Label, Project, ProjectFile, Status
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -51,6 +51,20 @@ class ProjectUpdateSerializer(serializers.ModelSerializer):
         extra_kwargs = {f: {"required": False} for f in fields}
 
 
+class LabelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Label
+        fields = ["id", "name", "colour", "order"]
+        read_only_fields = ["id"]
+
+
+class StatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Status
+        fields = ["id", "name", "colour", "order"]
+        read_only_fields = ["id"]
+
+
 class FolderCreateSerializer(serializers.ModelSerializer):
     parent = serializers.PrimaryKeyRelatedField(
         queryset=Folder.objects.all(), required=False, allow_null=True,
@@ -66,10 +80,19 @@ class FolderUpdateSerializer(serializers.ModelSerializer):
     parent = serializers.PrimaryKeyRelatedField(
         queryset=Folder.objects.all(), required=False, allow_null=True,
     )
+    pov_character = serializers.PrimaryKeyRelatedField(
+        queryset=ProjectFile.objects.all(), required=False, allow_null=True,
+    )
+    label = serializers.PrimaryKeyRelatedField(
+        queryset=Label.objects.all(), required=False, allow_null=True,
+    )
+    status = serializers.PrimaryKeyRelatedField(
+        queryset=Status.objects.all(), required=False, allow_null=True,
+    )
 
     class Meta:
         model = Folder
-        fields = ["title", "description", "notes", "tags", "target_word_count", "icon", "order", "parent"]
+        fields = ["title", "description", "notes", "tags", "target_word_count", "icon", "order", "parent", "include_in_compile", "pov_character", "label", "status"]
         extra_kwargs = {f: {"required": False} for f in fields}
 
 
@@ -84,17 +107,26 @@ class TextUpdateSerializer(serializers.ModelSerializer):
     folder = serializers.PrimaryKeyRelatedField(
         queryset=Folder.objects.all(), required=False, allow_null=True,
     )
+    pov_character = serializers.PrimaryKeyRelatedField(
+        queryset=ProjectFile.objects.all(), required=False, allow_null=True,
+    )
+    label = serializers.PrimaryKeyRelatedField(
+        queryset=Label.objects.all(), required=False, allow_null=True,
+    )
+    status = serializers.PrimaryKeyRelatedField(
+        queryset=Status.objects.all(), required=False, allow_null=True,
+    )
 
     class Meta:
         model = ProjectFile
-        fields = ["title", "description", "notes", "tags", "target_word_count", "icon", "order", "folder"]
+        fields = ["title", "description", "notes", "tags", "target_word_count", "icon", "order", "folder", "include_in_compile", "pov_character", "label", "status", "colour"]
         extra_kwargs = {f: {"required": False} for f in fields}
 
 
 class ProjectFileNodeSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProjectFile
-        fields = ["id", "title", "order", "file_type", "icon", "description", "notes", "tags", "target_word_count"]
+        fields = ["id", "title", "order", "file_type", "icon", "description", "notes", "tags", "target_word_count", "include_in_compile", "pov_character", "label", "status", "colour"]
 
 
 class FolderTreeSerializer(serializers.ModelSerializer):
@@ -103,7 +135,7 @@ class FolderTreeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Folder
-        fields = ["id", "title", "order", "icon", "description", "notes", "tags", "target_word_count", "is_trash", "items", "children"]
+        fields = ["id", "title", "order", "icon", "description", "notes", "tags", "target_word_count", "is_trash", "include_in_compile", "items", "children", "pov_character", "label", "status"]
 
     def get_children(self, obj):
         children = obj.children.all().order_by("order")
@@ -112,10 +144,13 @@ class FolderTreeSerializer(serializers.ModelSerializer):
 
 class ProjectTreeSerializer(serializers.ModelSerializer):
     folders = serializers.SerializerMethodField()
+    labels = serializers.SerializerMethodField()
+    statuses = serializers.SerializerMethodField()
+    characters = serializers.SerializerMethodField()
 
     class Meta:
         model = Project
-        fields = ["id", "title", "settings", "folders"]
+        fields = ["id", "title", "settings", "folders", "labels", "statuses", "characters"]
 
     def get_folders(self, obj):
         root_folders = obj.folders.filter(parent__isnull=True).order_by("order")
@@ -123,6 +158,15 @@ class ProjectTreeSerializer(serializers.ModelSerializer):
         trash = [f for f in root_folders if f.is_trash]
         ordered = non_trash + trash
         return FolderTreeSerializer(ordered, many=True).data
+
+    def get_labels(self, obj):
+        return LabelSerializer(Label.objects.filter(project=obj).order_by("order"), many=True).data
+
+    def get_statuses(self, obj):
+        return StatusSerializer(Status.objects.filter(project=obj).order_by("order"), many=True).data
+
+    def get_characters(self, obj):
+        return list(ProjectFile.objects.filter(project=obj, file_type="character").values("id", "title", "colour"))
 
 
 class FileVersionListSerializer(serializers.ModelSerializer):
@@ -135,3 +179,20 @@ class FileVersionDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = FileVersion
         fields = ["id", "created_at", "content_length", "content"]
+
+
+class CompileLayoutSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CompileLayout
+        fields = ["id", "name", "settings", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class CompileRequestSerializer(serializers.Serializer):
+    format = serializers.ChoiceField(
+        choices=["docx", "rtf", "markdown", "pdf", "latex", "epub", "mobi"],
+    )
+    layout_id = serializers.IntegerField(required=False, allow_null=True)
+    root_folder_id = serializers.IntegerField()
+    front_matter_folder_id = serializers.IntegerField(required=False, allow_null=True)
+    back_matter_folder_id = serializers.IntegerField(required=False, allow_null=True)

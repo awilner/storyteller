@@ -68,6 +68,7 @@ function toArboristNodes(tree) {
 
 function ContextMenu({ x, y, items, onClose }) {
   const ref = useRef(null);
+  const [hoveredSubmenu, setHoveredSubmenu] = useState(null);
   useEffect(() => {
     const onClick = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -82,10 +83,32 @@ function ContextMenu({ x, y, items, onClose }) {
       {items.map((item, i) =>
         item.separator ? (
           <div key={`sep-${i}`} style={menuStyles.sep} />
+        ) : item.submenu ? (
+          <div key={item.label} style={{ position: "relative" }}
+            onMouseEnter={() => setHoveredSubmenu(item.label)}
+            onMouseLeave={() => setHoveredSubmenu(null)}>
+            <button role="menuitem" style={{ ...menuStyles.item, display: "flex", justifyContent: "space-between" }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "#f0f0f0"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}>
+              {item.label} <span style={{ marginLeft: 8, fontSize: 10 }}>▶</span>
+            </button>
+            {hoveredSubmenu === item.label && (
+              <div style={{ ...menuStyles.menu, position: "absolute", left: "100%", top: 0, marginLeft: -2 }}>
+                {item.submenu.map((sub) => (
+                  <button key={sub.label} role="menuitem" style={menuStyles.item}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "#f0f0f0"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+                    onClick={() => { sub.action(); onClose(); }}>
+                    {sub.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         ) : (
           <button key={item.label} role="menuitem"
             style={{ ...menuStyles.item, color: item.danger ? "#c44" : "#222" }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "#f0f0f0"; }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "#f0f0f0"; setHoveredSubmenu(null); }}
             onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
             onClick={() => { item.action(); onClose(); }}>
             {item.label}
@@ -143,14 +166,72 @@ function IconPicker({ x, y, currentIcon, onSelect, onClose }) {
   );
 }
 
+/* ── Contrast utility ───────────────────────────────────────── */
+
+function getContrastColor(hex) {
+  if (!hex || hex.length < 7) return "#222";
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+  return luminance < 0.5 ? "#fff" : "#222";
+}
+
 /* ── Custom node renderer ──────────────────────────────────── */
 
 const iconStyle = { marginRight: 4, fontSize: "0.85rem", flexShrink: 0 };
 const nameStyle = { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 };
 
+// Module-level colour metadata for the Node renderer
+let _colourMeta = { labels: [], statuses: [], characters: [], iconBgSource: "", textColourSource: "", textBgSource: "" };
+
+function resolveColourForSource(nodeData, source, labels, statuses, characters) {
+  if (!source) return null;
+  const d = nodeData._data;
+  if (!d) return null;
+  if (source === "label" && d.label) {
+    const found = (labels || []).find((l) => l.id === d.label);
+    return found?.colour || null;
+  }
+  if (source === "status" && d.status) {
+    const found = (statuses || []).find((s) => s.id === d.status);
+    return found?.colour || null;
+  }
+  if (source === "pov" && d.pov_character) {
+    const found = (characters || []).find((c) => c.id === d.pov_character);
+    return found?.colour || null;
+  }
+  return null;
+}
+
 function Node({ node, style, dragHandle }) {
   const data = node.data;
   const isFolder = data._type === "folder";
+
+  const { iconBgSource, textColourSource, textBgSource, labels: metaLabels, statuses: metaStatuses, characters: metaCharacters } = _colourMeta;
+
+  const iconBgColour = resolveColourForSource(data, iconBgSource, metaLabels, metaStatuses, metaCharacters);
+  const textColour = resolveColourForSource(data, textColourSource, metaLabels, metaStatuses, metaCharacters);
+  const textBgColour = resolveColourForSource(data, textBgSource, metaLabels, metaStatuses, metaCharacters);
+
+  const getIconColourStyle = () => {
+    if (!iconBgColour) return {};
+    return { backgroundColor: iconBgColour, borderRadius: "3px", padding: "0 2px" };
+  };
+
+  const getTitleColourStyle = () => {
+    const style = {};
+    if (textBgColour) {
+      style.backgroundColor = textBgColour;
+      style.color = getContrastColor(textBgColour);
+      style.borderRadius = 3;
+      style.padding = "0 3px";
+    }
+    if (textColour) {
+      style.color = textColour;
+    }
+    return style;
+  };
 
   if (isFolder) {
     const icon = data._icon || DEFAULT_FOLDER_ICON;
@@ -161,13 +242,13 @@ function Node({ node, style, dragHandle }) {
           onClick={(e) => { e.stopPropagation(); node.toggle(); }}>
           {node.isOpen ? "▼" : "▶"}
         </span>
-        <span style={iconStyle} onClick={() => node.activate()}>{icon}</span>
+        <span style={{ ...iconStyle, ...getIconColourStyle() }} onClick={() => node.activate()}>{icon}</span>
         {node.isEditing && !data._isTrash ? (
           <input autoFocus type="text" defaultValue={data.name} style={{ flex: 1, fontSize: 13, padding: "1px 4px", border: "1px solid #ccc", borderRadius: 3 }}
             onBlur={(e) => node.submit(e.currentTarget.value)}
             onKeyDown={(e) => { if (e.key === "Enter") node.submit(e.currentTarget.value); if (e.key === "Escape") node.reset(); }} />
         ) : (
-          <span style={nameStyle} title={data.name} onClick={() => node.activate()}>{data.name}</span>
+          <span style={{ ...nameStyle, ...getTitleColourStyle() }} title={data.name} onClick={() => node.activate()}>{data.name}</span>
         )}
       </div>
     );
@@ -181,13 +262,13 @@ function Node({ node, style, dragHandle }) {
       style={{ ...style, display: "flex", alignItems: "center", cursor: "pointer", borderRadius: 4, fontSize: "0.9rem",
         backgroundColor: node.isSelected ? "#d0e4ff" : "transparent",
         fontWeight: node.isSelected ? 600 : 400 }}>
-      <span style={iconStyle}>{icon}</span>
+      <span style={{ ...iconStyle, ...getIconColourStyle() }}>{icon}</span>
       {node.isEditing ? (
         <input autoFocus type="text" defaultValue={data.name} style={{ flex: 1, fontSize: 13, padding: "1px 4px", border: "1px solid #ccc", borderRadius: 3 }}
           onBlur={(e) => node.submit(e.currentTarget.value)}
           onKeyDown={(e) => { if (e.key === "Enter") node.submit(e.currentTarget.value); if (e.key === "Escape") node.reset(); }} />
       ) : (
-        <span style={nameStyle} title={data.name}>{data.name}</span>
+        <span style={{ ...nameStyle, ...getTitleColourStyle() }} title={data.name}>{data.name}</span>
       )}
     </div>
   );
@@ -195,7 +276,7 @@ function Node({ node, style, dragHandle }) {
 
 /* ── Main component ────────────────────────────────────────── */
 
-export default function ProjectTree({ tree, onSelectFile, activeFileId, selectedFolderId, onSelectFolder, onAddFolder, onDeleteFolder, onAddText, onDeleteText, onReorder, onRenameFolder, onRenameText, onChangeFolderIcon, onChangeTextIcon, onEmptyTrash }) {
+export default function ProjectTree({ tree, onSelectFile, activeFileId, selectedFolderId, onSelectFolder, onAddFolder, onDeleteFolder, onAddText, onDeleteText, onReorder, onRenameFolder, onRenameText, onChangeFolderIcon, onChangeTextIcon, onEmptyTrash, labels, statuses, characters, treeSettings }) {
   const t = useI18n();
   const [menu, setMenu] = useState(null);
   const [iconPicker, setIconPicker] = useState(null);
@@ -305,9 +386,16 @@ export default function ProjectTree({ tree, onSelectFile, activeFileId, selected
           // Folder inside trash: only permanent delete
           if (onDeleteFolder) { items.push({ label: t("trash.permanently_delete"), danger: true, action: () => onDeleteFolder(d._dbId, d.name) }); }
         } else {
-          // Normal folder outside trash
-          if (onAddText) items.push({ label: t("tree.new_text"), action: () => { node.open(); const title = window.prompt(t("tree.text_title_prompt")); if (title?.trim()) onAddText(d._dbId, title.trim()); } });
-          if (onAddFolder) items.push({ label: t("tree.new_subfolder"), action: () => { node.open(); const title = window.prompt(t("tree.folder_title_prompt")); if (title?.trim()) onAddFolder(d._dbId, title.trim()); } });
+          // Normal folder outside trash — "New" submenu
+          const newSubmenu = [];
+          if (onAddFolder) newSubmenu.push({ label: t("tree.new_subfolder"), action: () => { node.open(); const title = window.prompt(t("tree.folder_title_prompt")); if (title?.trim()) onAddFolder(d._dbId, title.trim()); } });
+          if (onAddText) {
+            newSubmenu.push({ label: t("tree.new_text"), action: () => { node.open(); const title = window.prompt(t("tree.text_title_prompt")); if (title?.trim()) onAddText(d._dbId, title.trim(), "text"); } });
+            newSubmenu.push({ label: t("tree.new_character"), action: () => { node.open(); const title = window.prompt(t("tree.text_title_prompt")); if (title?.trim()) onAddText(d._dbId, title.trim(), "character"); } });
+            newSubmenu.push({ label: t("tree.new_location"), action: () => { node.open(); const title = window.prompt(t("tree.text_title_prompt")); if (title?.trim()) onAddText(d._dbId, title.trim(), "location"); } });
+            newSubmenu.push({ label: t("tree.new_note"), action: () => { node.open(); const title = window.prompt(t("tree.text_title_prompt")); if (title?.trim()) onAddText(d._dbId, title.trim(), "note"); } });
+          }
+          if (newSubmenu.length) items.push({ label: t("tree.new"), submenu: newSubmenu });
           items.push({ label: t("tree.rename"), action: () => node.edit() });
           if (onChangeFolderIcon) {
             items.push({ separator: true });
@@ -344,6 +432,16 @@ export default function ProjectTree({ tree, onSelectFile, activeFileId, selected
   }, [onRenameFolder, onRenameText]);
 
   if (!tree) return null;
+
+  // Update module-level colour metadata for the Node renderer
+  _colourMeta = {
+    labels: labels || [],
+    statuses: statuses || [],
+    characters: characters || [],
+    iconBgSource: treeSettings?.tree_icon_bg_source || "",
+    textColourSource: treeSettings?.tree_text_colour_source || "",
+    textBgSource: treeSettings?.tree_text_bg_source || "",
+  };
 
   return (
     <div ref={containerRef} style={{ width: "100%", height: "100%", fontFamily: "system-ui" }} onContextMenu={handleContextMenu}>

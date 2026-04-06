@@ -9,7 +9,9 @@ import FormattingToolbar from "./FormattingToolbar";
 import FolderView from "./FolderView";
 import VersionHistoryPanel from "./VersionHistoryPanel";
 import PropertiesPanel from "./PropertiesPanel";
-import { fetchProjectTree, fetchFile, saveDraftCache, createVersion, createFolder, deleteFolder, createText, deleteText, updateFolder, updateText, reorderTree, emptyTrash, exportScrivener, exportYWriter } from "./api";
+import CompileDialog from "./CompileDialog";
+import ProjectSettings from "./ProjectSettings";
+import { fetchProjectTree, fetchFile, saveDraftCache, createVersion, createFolder, deleteFolder, createText, deleteText, updateFolder, updateText, updateProject, reorderTree, emptyTrash, exportScrivener, exportYWriter } from "./api";
 import "./EditorView.css";
 
 const DEBOUNCE_MS = 2000;
@@ -428,11 +430,11 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
     }
   }, [projectId, activeFileId, tree, refreshTree, findFolderById, folderContainsFile]);
 
-  const handleAddText = useCallback(async (folderId, title) => {
+  const handleAddText = useCallback(async (folderId, title, fileType = "text") => {
     const folder = findFolderById(tree?.folders, folderId);
     const nextOrder = (folder?.items?.length ?? 0);
     try {
-      await createText(projectId, folderId, title, nextOrder);
+      await createText(projectId, folderId, title, nextOrder, fileType);
       await refreshTree();
     } catch (err) {
       setTreeError(err.message);
@@ -497,6 +499,16 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   const handleExportYWriter = useCallback(() => {
     window.location.href = exportYWriter(projectId);
   }, [projectId]);
+
+  const [compileOpen, setCompileOpen] = useState(false);
+  const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
+  const handleCompile = useCallback(() => setCompileOpen(true), []);
+  const handleProjectSettings = useCallback(() => setProjectSettingsOpen(true), []);
+
+  const handleCloseProjectSettings = useCallback(async () => {
+    setProjectSettingsOpen(false);
+    await refreshTree();
+  }, [refreshTree]);
 
   const handleSaveProperties = useCallback(async (data) => {
     if (!selectedItem || !selectedType) return;
@@ -589,6 +601,10 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
           onChangeFolderIcon={handleChangeFolderIcon}
           onChangeTextIcon={handleChangeTextIcon}
           onEmptyTrash={handleEmptyTrash}
+          labels={tree?.labels}
+          statuses={tree?.statuses}
+          characters={tree?.characters}
+          treeSettings={tree?.settings}
         />
       )}
     </>
@@ -663,7 +679,7 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
 
   const propertiesContent = (
     <div className={isMobile ? "editor-right-panel--mobile" : "editor-right-panel"}>
-      {selectedItem && <PropertiesPanel item={selectedItem} type={selectedType} onSave={handleSaveProperties} />}
+      {selectedItem && <PropertiesPanel item={selectedItem} type={selectedType} onSave={handleSaveProperties} characters={tree?.characters} labels={tree?.labels} statuses={tree?.statuses} />}
       {activeFileId && <VersionHistoryPanel fileId={activeFileId} onRevert={handleRevert} />}
     </div>
   );
@@ -672,7 +688,7 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   if (isMobile) {
     return (
       <div className="editor-mobile-wrapper">
-        <TopBar projectTitle={tree?.title} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} onExportScrivener={handleExportScrivener} onExportYWriter={handleExportYWriter} />
+        <TopBar projectTitle={tree?.title} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} onExportScrivener={handleExportScrivener} onExportYWriter={handleExportYWriter} onCompile={handleCompile} onProjectSettings={handleProjectSettings} />
         <div className="editor-mobile-tabs">
           <button type="button" className={`editor-mobile-tab${mobilePanel === "tree" ? " editor-mobile-tab--active" : ""}`} onClick={() => setMobilePanel("tree")}>📁 Tree</button>
           <button type="button" className={`editor-mobile-tab${mobilePanel === "editor" ? " editor-mobile-tab--active" : ""}`} onClick={() => setMobilePanel("editor")}>✏️ Editor</button>
@@ -683,6 +699,8 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
           {mobilePanel === "editor" && editorContent}
           {mobilePanel === "properties" && propertiesContent}
         </div>
+        {compileOpen && <CompileDialog projectId={projectId} tree={tree} onClose={() => setCompileOpen(false)} />}
+        {projectSettingsOpen && <ProjectSettings projectId={projectId} settings={tree?.settings} onClose={handleCloseProjectSettings} onRefresh={refreshTree} />}
       </div>
     );
   }
@@ -690,12 +708,14 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   // ── Desktop layout ─────────────────────────────────────────
   return (
     <div className="editor-desktop-wrapper">
-      <TopBar projectTitle={tree?.title} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} onExportScrivener={handleExportScrivener} onExportYWriter={handleExportYWriter} />
+      <TopBar projectTitle={tree?.title} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} onExportScrivener={handleExportScrivener} onExportYWriter={handleExportYWriter} onCompile={handleCompile} onProjectSettings={handleProjectSettings} />
       <div className="editor-desktop-body">
         <div className="editor-sidebar">{sidebarContent}</div>
         {editorContent}
         {(selectedItem || activeFileId) && propertiesContent}
       </div>
+      {compileOpen && <CompileDialog projectId={projectId} tree={tree} onClose={() => setCompileOpen(false)} />}
+      {projectSettingsOpen && <ProjectSettings projectId={projectId} settings={tree?.settings} onClose={handleCloseProjectSettings} onRefresh={refreshTree} />}
     </div>
   );
 }

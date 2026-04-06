@@ -6,3 +6,4 @@ PyJWT[crypto]>=2.8,<3.0
 requests>=2.31,<3.0
 django-redis>=5.4,<6.0
 striprtf>=0.0.26,<1.0  # RTF-to-text conversion for Scrivener import
+pypandoc>=1.11,<2.0

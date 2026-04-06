@@ -2,6 +2,9 @@ from django.urls import path
 from .translations import translations_view
 from .views import (
     change_password_view,
+    compile_layout_detail_view,
+    compile_layout_list_view,
+    compile_view,
     config_view,
     empty_trash_view,
     export_scrivener_view,
@@ -13,6 +16,8 @@ from .views import (
     file_versions_view,
     folder_create_view,
     folder_detail_view,
+    label_detail_view,
+    label_list_view,
     login_view,
     logout_view,
     me_view,
@@ -26,6 +31,8 @@ from .views import (
     register_view,
     reorder_view,
     scrivener_import_view,
+    status_detail_view,
+    status_list_view,
     ywriter_import_view,
     text_create_view,
     text_detail_view,
@@ -58,6 +65,11 @@ urlpatterns = [
     path("projects/<int:project_pk>/texts/<int:file_pk>/", text_detail_view, name="text-detail"),
     path("projects/<int:project_pk>/reorder/", reorder_view, name="project-reorder"),
     path("projects/<int:project_pk>/trash/empty/", empty_trash_view, name="trash-empty"),
+    # Labels & Statuses
+    path("projects/<int:project_pk>/labels/", label_list_view, name="label-list"),
+    path("projects/<int:project_pk>/labels/<int:label_pk>/", label_detail_view, name="label-detail"),
+    path("projects/<int:project_pk>/statuses/", status_list_view, name="status-list"),
+    path("projects/<int:project_pk>/statuses/<int:status_pk>/", status_detail_view, name="status-detail"),
     path("projects/import/scrivener/", scrivener_import_view, name="scrivener-import"),
     path("projects/import/ywriter/", ywriter_import_view, name="ywriter-import"),
     path("projects/<int:project_pk>/export/scrivener/", export_scrivener_view, name="scrivener-export"),
@@ -67,4 +79,9 @@ urlpatterns = [
     path("files/<int:file_pk>/versions/", file_versions_view, name="file-versions"),
     path("files/<int:file_pk>/versions/<int:version_pk>/", file_version_detail_view, name="file-version-detail"),
     path("files/<int:file_pk>/versions/<int:version_pk>/revert/", file_version_revert_view, name="file-version-revert"),
+    # Compile layouts
+    path("projects/<int:project_pk>/compile-layouts/", compile_layout_list_view, name="compile-layout-list"),
+    path("projects/<int:project_pk>/compile-layouts/<int:layout_pk>/", compile_layout_detail_view, name="compile-layout-detail"),
+    # Compile
+    path("projects/<int:project_pk>/compile/", compile_view, name="project-compile"),
 ]

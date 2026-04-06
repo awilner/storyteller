@@ -119,10 +119,10 @@ export const updateFolder = (projectId, folderId, data) =>
     body: JSON.stringify(data),
   });
 
-export const createText = (projectId, folderId, title, order = 0) =>
+export const createText = (projectId, folderId, title, order = 0, fileType = "text") =>
   request(`${API_BASE}/projects/${projectId}/folders/${folderId}/texts/`, {
     method: "POST",
-    body: JSON.stringify({ title, order }),
+    body: JSON.stringify({ title, order, file_type: fileType }),
   });
 
 export const deleteText = (projectId, fileId) =>
@@ -218,3 +218,103 @@ export const exportScrivener = (projectId) =>
 
 export const exportYWriter = (projectId) =>
   `${API_BASE}/projects/${projectId}/export/ywriter/`;
+
+
+// Labels
+export const fetchLabels = (projectId) =>
+  request(`${API_BASE}/projects/${projectId}/labels/`);
+
+export const createLabel = (projectId, data) =>
+  request(`${API_BASE}/projects/${projectId}/labels/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const updateLabel = (projectId, labelId, data) =>
+  request(`${API_BASE}/projects/${projectId}/labels/${labelId}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+
+export const deleteLabel = async (projectId, labelId, confirm = false) => {
+  const url = `${API_BASE}/projects/${projectId}/labels/${labelId}/${confirm ? "?confirm=true" : ""}`;
+  const res = await fetch(url, {
+    method: "DELETE",
+    credentials: "include",
+    headers: { "X-CSRFToken": getCookie("csrftoken") || "" },
+  });
+  if (res.status === 204) return null;
+  const data = await res.json();
+  if (res.status === 409) return data;
+  if (!res.ok) throw new Error(data.detail || "Delete failed");
+  return data;
+};
+
+// Statuses
+export const fetchStatuses = (projectId) =>
+  request(`${API_BASE}/projects/${projectId}/statuses/`);
+
+export const createStatus = (projectId, data) =>
+  request(`${API_BASE}/projects/${projectId}/statuses/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const updateStatus = (projectId, statusId, data) =>
+  request(`${API_BASE}/projects/${projectId}/statuses/${statusId}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+
+export const deleteStatus = async (projectId, statusId, confirm = false) => {
+  const url = `${API_BASE}/projects/${projectId}/statuses/${statusId}/${confirm ? "?confirm=true" : ""}`;
+  const res = await fetch(url, {
+    method: "DELETE",
+    credentials: "include",
+    headers: { "X-CSRFToken": getCookie("csrftoken") || "" },
+  });
+  if (res.status === 204) return null;
+  const data = await res.json();
+  if (res.status === 409) return data;
+  if (!res.ok) throw new Error(data.detail || "Delete failed");
+  return data;
+};
+
+// Compile layouts
+export const fetchCompileLayouts = (projectId) =>
+  request(`${API_BASE}/projects/${projectId}/compile-layouts/`);
+
+export const createCompileLayout = (projectId, data) =>
+  request(`${API_BASE}/projects/${projectId}/compile-layouts/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const updateCompileLayout = (projectId, layoutId, data) =>
+  request(`${API_BASE}/projects/${projectId}/compile-layouts/${layoutId}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+
+export const deleteCompileLayout = (projectId, layoutId) =>
+  request(`${API_BASE}/projects/${projectId}/compile-layouts/${layoutId}/`, {
+    method: "DELETE",
+  });
+
+// Compile execution (returns raw fetch response for blob download)
+export const compileManuscript = async (projectId, params) => {
+  const res = await fetch(`${API_BASE}/projects/${projectId}/compile/`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": getCookie("csrftoken") || "",
+    },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.detail || "Compile failed");
+  }
+  return res;
+};

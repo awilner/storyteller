@@ -105,3 +105,31 @@
 }
 .topbar-dropdown-item:hover { background: #f5f5f5; }
 .topbar-dropdown-item--danger { color: #c44; }
+
+.section-divider {
+  height: 1px;
+  background: #e5e5e5;
+  margin: 4px 0;
+}
+
+.topbar-dropdown-settings {
+  padding: 8px 14px;
+}
+.topbar-dropdown-settings-label {
+  display: block;
+  font-size: 11px;
+  color: #888;
+  margin-bottom: 2px;
+  margin-top: 6px;
+}
+.topbar-dropdown-settings-label:first-child {
+  margin-top: 0;
+}
+.topbar-dropdown-select {
+  width: 100%;
+  padding: 4px 6px;
+  font-size: 12px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  box-sizing: border-box;
+}

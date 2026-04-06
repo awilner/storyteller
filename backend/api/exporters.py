@@ -13,9 +13,23 @@ import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
 from .models import Folder, ProjectFile
+from .models import Label, Status
 
 
 # ── Helpers ───────────────────────────────────────────────────
+
+def _hex_to_scriv_colour(hex_str):
+    """Convert hex colour (e.g. '#F3EA54') to Scrivener RGB float string."""
+    if not hex_str or len(hex_str) < 7:
+        return ""
+    try:
+        r = int(hex_str[1:3], 16) / 255.0
+        g = int(hex_str[3:5], 16) / 255.0
+        b = int(hex_str[5:7], 16) / 255.0
+        return f"{r:.6f} {g:.6f} {b:.6f}"
+    except (ValueError, IndexError):
+        return ""
+
 
 def _markdown_to_bbcode(text):
     """Convert markdown inline formatting back to yWriter BBCode.
@@ -226,12 +240,20 @@ def _reset_binder_ids():
     _next_binder_id._counter = 0
 
 
-def _build_binder_item(item_type, title, children_elements=None, item_id=None):
+def _build_binder_item(item_type, title, children_elements=None, item_id=None, label_id=None, status_id=None):
     """Build a <BinderItem> element."""
     bid = item_id or _next_binder_id()
     el = ET.Element("BinderItem", Type=item_type, ID=str(bid))
     title_el = ET.SubElement(el, "Title")
     title_el.text = title
+    if label_id is not None or status_id is not None:
+        meta = ET.SubElement(el, "MetaData")
+        if label_id is not None:
+            lid = ET.SubElement(meta, "LabelID")
+            lid.text = str(label_id)
+        if status_id is not None:
+            sid = ET.SubElement(meta, "StatusID")
+            sid.text = str(status_id)
     if children_elements:
         children_el = ET.SubElement(el, "Children")
         for child in children_elements:
@@ -239,27 +261,17 @@ def _build_binder_item(item_type, title, children_elements=None, item_id=None):
     return el, bid
 
 
-def _folder_to_binder(folder, docs, is_draft=False):
-    """Recursively convert a Folder to BinderItem elements.
-
-    For the DraftFolder, child folders become Type=Folder and texts become Type=Text.
-    For other top-level folders, everything becomes Type=Text (flat world-building).
-
-    Args:
-        folder: Folder model instance
-        docs: dict to accumulate {binder_id: content} for writing .md files
-        is_draft: if True, child folders are Type=Folder; otherwise flat
-
-    Returns:
-        list of BinderItem elements
-    """
+def _folder_to_binder(folder, docs, is_draft=False, label_id_map=None, status_id_map=None):
+    """Recursively convert a Folder to BinderItem elements."""
+    if label_id_map is None:
+        label_id_map = {}
+    if status_id_map is None:
+        status_id_map = {}
     items = []
 
-    # Interleave child folders and texts by order
     child_folders = list(folder.children.order_by("order"))
     child_texts = list(folder.texts.order_by("order"))
 
-    # Build combined list sorted by order
     combined = []
     for cf in child_folders:
         if cf.is_trash:
@@ -271,21 +283,24 @@ def _folder_to_binder(folder, docs, is_draft=False):
 
     for kind, obj in combined:
         if kind == "folder":
-            sub_items = _folder_to_binder(obj, docs, is_draft=is_draft)
-            el, bid = _build_binder_item("Folder", obj.title, sub_items)
+            sub_items = _folder_to_binder(obj, docs, is_draft=is_draft, label_id_map=label_id_map, status_id_map=status_id_map)
+            scriv_label = label_id_map.get(obj.label_id)
+            scriv_status = status_id_map.get(obj.status_id)
+            el, bid = _build_binder_item("Folder", obj.title, sub_items, label_id=scriv_label, status_id=scriv_status)
             if obj.description:
                 docs[f"{bid}_synopsis"] = obj.description
             if obj.notes:
                 docs[f"{bid}_notes"] = obj.notes
             items.append(el)
         else:
-            el, bid = _build_binder_item("Text", obj.title)
+            scriv_label = label_id_map.get(obj.label_id)
+            scriv_status = status_id_map.get(obj.status_id)
+            el, bid = _build_binder_item("Text", obj.title, label_id=scriv_label, status_id=scriv_status)
             docs[str(bid)] = obj.content
             if obj.description:
                 docs[f"{bid}_synopsis"] = obj.description
             if obj.notes:
                 docs[f"{bid}_notes"] = obj.notes
-            # Target word count
             if obj.target_word_count:
                 ts = ET.SubElement(el, "TextSettings")
                 target = ET.SubElement(ts, "Target", Type="Words")
@@ -301,41 +316,80 @@ def export_scrivener(project):
 
     root_el = ET.Element("ScrivenerProject")
     binder = ET.SubElement(root_el, "Binder")
-    docs = {}  # binder_id -> content string
+    docs = {}
+
+    # Build label/status ID maps: db pk -> scrivener integer ID
+    labels = list(Label.objects.filter(project=project).order_by("order"))
+    statuses = list(Status.objects.filter(project=project).order_by("order"))
+    label_id_map = {}  # db label pk -> scriv ID
+    status_id_map = {}  # db status pk -> scriv ID
+    for i, lbl in enumerate(labels):
+        label_id_map[lbl.pk] = i + 1
+    for i, st in enumerate(statuses):
+        status_id_map[st.pk] = i + 1
 
     root_folders = list(project.folders.filter(parent__isnull=True).order_by("order"))
 
     for folder in root_folders:
         if folder.is_trash:
-            # Export as TrashFolder
-            trash_items = _folder_to_binder(folder, docs, is_draft=True)
+            trash_items = _folder_to_binder(folder, docs, is_draft=True, label_id_map=label_id_map, status_id_map=status_id_map)
             el, _ = _build_binder_item("TrashFolder", folder.title, trash_items)
             binder.append(el)
             continue
 
-        # Detect folder purpose by child file types
         child_types = set(folder.texts.values_list("file_type", flat=True))
         for desc in folder.children.all():
             child_types.update(desc.texts.values_list("file_type", flat=True))
 
         if child_types <= {"text", ""} or "manuscript" in folder.title.lower():
-            # DraftFolder
-            draft_items = _folder_to_binder(folder, docs, is_draft=True)
+            draft_items = _folder_to_binder(folder, docs, is_draft=True, label_id_map=label_id_map, status_id_map=status_id_map)
             el, _ = _build_binder_item("DraftFolder", folder.title, draft_items)
             binder.append(el)
         elif child_types == {"character"}:
-            items = _folder_to_binder(folder, docs, is_draft=False)
+            items = _folder_to_binder(folder, docs, is_draft=False, label_id_map=label_id_map, status_id_map=status_id_map)
             el, _ = _build_binder_item("Folder", folder.title, items)
             binder.append(el)
         elif child_types == {"location"}:
-            items = _folder_to_binder(folder, docs, is_draft=False)
+            items = _folder_to_binder(folder, docs, is_draft=False, label_id_map=label_id_map, status_id_map=status_id_map)
             el, _ = _build_binder_item("Folder", folder.title, items)
             binder.append(el)
         else:
-            # Generic folder
-            items = _folder_to_binder(folder, docs, is_draft=True)
+            items = _folder_to_binder(folder, docs, is_draft=True, label_id_map=label_id_map, status_id_map=status_id_map)
             el, _ = _build_binder_item("Folder", folder.title, items)
             binder.append(el)
+
+    # Write <LabelSettings>
+    ls_el = ET.SubElement(root_el, "LabelSettings")
+    ls_title = ET.SubElement(ls_el, "Title")
+    ls_title.text = "Label"
+    ls_default = ET.SubElement(ls_el, "DefaultLabelID")
+    ls_default.text = "-1"
+    labels_list = ET.SubElement(ls_el, "Labels")
+    no_label = ET.SubElement(labels_list, "Label", ID="-1")
+    no_label.text = "No Label"
+    for lbl in labels:
+        scriv_id = label_id_map[lbl.pk]
+        attrs = {"ID": str(scriv_id)}
+        if lbl.colour:
+            scriv_colour = _hex_to_scriv_colour(lbl.colour)
+            if scriv_colour:
+                attrs["Color"] = scriv_colour
+        lbl_el = ET.SubElement(labels_list, "Label", **attrs)
+        lbl_el.text = lbl.name
+
+    # Write <StatusSettings>
+    ss_el = ET.SubElement(root_el, "StatusSettings")
+    ss_title = ET.SubElement(ss_el, "Title")
+    ss_title.text = "Status"
+    ss_default = ET.SubElement(ss_el, "DefaultStatusID")
+    ss_default.text = "-1"
+    status_items = ET.SubElement(ss_el, "StatusItems")
+    no_status = ET.SubElement(status_items, "Status", ID="-1")
+    no_status.text = "No Status"
+    for st in statuses:
+        scriv_id = status_id_map[st.pk]
+        st_el = ET.SubElement(status_items, "Status", ID=str(scriv_id))
+        st_el.text = st.name
 
     # Build the XML
     xml_str = '<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(

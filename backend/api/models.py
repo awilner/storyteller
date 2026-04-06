@@ -29,6 +29,47 @@ class Project(models.Model):
         return self.title
 
 
+class Label(models.Model):
+    """A project-scoped label for categorising folders and files."""
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="labels",
+    )
+    name = models.CharField(max_length=100)
+    colour = models.CharField(max_length=7, blank=True, default="")
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["order"]
+        unique_together = ("project", "name")
+
+    def __str__(self):
+        return self.name
+
+
+class Status(models.Model):
+    """A project-scoped workflow status for tracking folder/file progress."""
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="statuses",
+    )
+    name = models.CharField(max_length=100)
+    colour = models.CharField(max_length=7, blank=True, default="")
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["order"]
+        unique_together = ("project", "name")
+        verbose_name_plural = "statuses"
+
+    def __str__(self):
+        return self.name
+
+
 class Folder(models.Model):
     """Groups items within a project into ordered folders. Supports nesting."""
 
@@ -54,6 +95,28 @@ class Folder(models.Model):
     is_trash = models.BooleanField(
         default=False,
         help_text="Whether this folder is the project's trash folder.",
+    )
+    include_in_compile = models.BooleanField(default=True)
+    pov_character = models.ForeignKey(
+        "ProjectFile",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="pov_folders",
+    )
+    label = models.ForeignKey(
+        Label,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="labeled_folders",
+    )
+    status = models.ForeignKey(
+        Status,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="status_folders",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -114,6 +177,29 @@ class ProjectFile(models.Model):
         default=0,
         help_text="Sort order within folder (texts) or within project (world-building).",
     )
+    include_in_compile = models.BooleanField(default=True)
+    pov_character = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="pov_files",
+    )
+    label = models.ForeignKey(
+        Label,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="labeled_files",
+    )
+    status = models.ForeignKey(
+        Status,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="status_files",
+    )
+    colour = models.CharField(max_length=7, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -148,6 +234,23 @@ class FileVersion(models.Model):
 
     def __str__(self):
         return f"Version {self.pk} of {self.file}"
+
+
+class CompileLayout(models.Model):
+    """A saved compile layout configuration for a project."""
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="compile_layouts",
+    )
+    name = models.CharField(max_length=300)
+    settings = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
 
 
 class OIDCIdentity(models.Model):

@@ -69,8 +69,12 @@ def _get_ui_strings():
 
         # Project tree
         "tree.new_text": _("New text"),
+        "tree.new": _("New"),
         "tree.new_subfolder": _("New subfolder"),
         "tree.new_folder": _("New folder"),
+        "tree.new_character": _("New character"),
+        "tree.new_location": _("New location"),
+        "tree.new_note": _("New note"),
         "tree.rename": _("Rename"),
         "tree.delete_folder": _("Move to Trash"),
         "tree.delete_text": _("Move to Trash"),
@@ -120,6 +124,8 @@ def _get_ui_strings():
         "topbar.logout": _("Log out"),
         "topbar.export_scrivener": _("Export as Scrivener"),
         "topbar.export_ywriter": _("Export as yWriter"),
+        "topbar.compile_manuscript": _("Compile Manuscript"),
+        "topbar.project_settings": _("Project Settings"),
 
         # Account page
         "account.title": _("Account"),
@@ -170,6 +176,91 @@ def _get_ui_strings():
         "trash.confirm_empty": _("Permanently delete all items in the trash? This cannot be undone."),
         "trash.confirm_permanent_delete": _('Permanently delete "%(title)s"? This cannot be undone.'),
         "trash.confirm_permanent_delete_folder": _('Permanently delete "%(title)s" and all its contents? This cannot be undone.'),
+
+        # Compile
+        "compile.title": _("Compile Manuscript"),
+        "compile.compile_btn": _("Compile"),
+        "compile.compiling": _("Compiling…"),
+        "compile.root_folder": _("Compile Root"),
+        "compile.format": _("Output Format"),
+        "compile.layout": _("Layout"),
+        "compile.default_layout": _("Default"),
+        "compile.new_layout": _("New Layout"),
+        "compile.layout_name": _("Layout Name"),
+        "compile.front_matter": _("Front Matter"),
+        "compile.back_matter": _("Back Matter"),
+        "compile.enable_front_matter": _("Include front matter"),
+        "compile.enable_back_matter": _("Include back matter"),
+        "compile.no_content": _("No content to compile. Check your include/exclude settings."),
+        "compile.error": _("Compile failed: %(error)s"),
+        "compile.format_docx": _("Word Document (.docx)"),
+        "compile.format_rtf": _("Rich Text Format (.rtf)"),
+        "compile.format_markdown": _("Markdown (.md)"),
+        "compile.format_pdf": _("PDF (.pdf)"),
+        "compile.format_latex": _("LaTeX (.tex)"),
+        "compile.format_epub": _("EPUB (.epub)"),
+        "compile.format_mobi": _("MOBI (.mobi)"),
+        "compile.heading_style": _("Chapter Heading Style"),
+        "compile.heading_title": _("Title only"),
+        "compile.heading_numbered": _("Numbered only"),
+        "compile.heading_numbered_title": _("Number and title"),
+        "compile.page_break": _("Page break before chapter"),
+        "compile.blank_page": _("Blank page before chapter"),
+        "compile.body_font": _("Body Font"),
+        "compile.body_font_size": _("Body Font Size"),
+        "compile.heading_font": _("Heading Font"),
+        "compile.heading_font_size": _("Heading Font Size"),
+        "compile.show_scene_titles": _("Show scene titles"),
+        "compile.scene_separator": _("Scene Separator"),
+        "compile.separator_horizontal_rule": _("Horizontal rule"),
+        "compile.separator_three_asterisks": _("Three asterisks (* * *)"),
+        "compile.separator_custom_text": _("Custom text"),
+        "compile.separator_blank_line": _("Blank line"),
+        "compile.separator_none": _("None"),
+        "compile.custom_separator_text": _("Custom separator text"),
+        "compile.margins": _("Page Margins"),
+        "compile.margin_top": _("Top"),
+        "compile.margin_bottom": _("Bottom"),
+        "compile.margin_left": _("Left"),
+        "compile.margin_right": _("Right"),
+
+        # Metadata
+        "properties.pov": _("POV Character"),
+        "properties.label": _("Label"),
+        "properties.status": _("Status"),
+        "properties.colour": _("Colour"),
+        "properties.none_option": _("— None —"),
+
+        # Label manager
+        "labels.title": _("Labels"),
+        "labels.add": _("Add Label"),
+        "labels.name": _("Name"),
+        "labels.colour": _("Colour"),
+        "labels.delete_warning": _('Delete "%(name)s"? It is assigned to %(count)s items.'),
+        "labels.confirm_delete": _("Delete"),
+
+        # Status manager
+        "statuses.title": _("Statuses"),
+        "statuses.add": _("Add Status"),
+        "statuses.name": _("Name"),
+        "statuses.colour": _("Colour"),
+        "statuses.delete_warning": _('Delete "%(name)s"? It is assigned to %(count)s items.'),
+        "statuses.confirm_delete": _("Delete"),
+
+        # TopBar
+        "topbar.manage_labels": _("Manage Labels"),
+        "topbar.manage_statuses": _("Manage Statuses"),
+
+        # Tree display settings
+        "settings.tree_tab": _("Tree"),
+        "settings.layouts_tab": _("Layouts"),
+        "settings.tree_icon_bg": _("Icon background"),
+        "settings.tree_text_colour": _("Text colour"),
+        "settings.tree_text_bg": _("Text background"),
+        "settings.source_nothing": _("Nothing"),
+        "settings.colour_source_pov": _("POV Character"),
+        "settings.colour_source_label": _("Label"),
+        "settings.colour_source_status": _("Status"),
     }
 
 

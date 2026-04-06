@@ -1,0 +1,233 @@
+/* ── Compile Dialog ──────────────────────────────────────────── */
+
+.compile-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.compile-modal {
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  width: 900px;
+  max-width: 95vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+}
+
+.compile-modal h3 {
+  margin: 0 0 16px;
+}
+
+.compile-body {
+  display: flex;
+  gap: 24px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.compile-left {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  max-height: 60vh;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.compile-right {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Sections ────────────────────────────────────────────────── */
+
+.compile-section {
+  margin-bottom: 14px;
+}
+
+.compile-section-label {
+  display: block;
+  font-size: 13px;
+  color: #555;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.compile-select {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+/* ── Toggle row (front/back matter) ──────────────────────────── */
+
+.compile-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.compile-toggle-row label {
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Tree view ───────────────────────────────────────────────── */
+
+.compile-tree-node {
+  padding-left: 16px;
+}
+
+.compile-tree-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  font-size: 13px;
+}
+
+.compile-tree-item input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.compile-tree-item--folder {
+  font-weight: 600;
+}
+
+.compile-tree-item--dimmed {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* ── Layout editor ───────────────────────────────────────────── */
+
+.compile-layout-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.compile-layout-header .compile-select {
+  flex: 1;
+}
+
+.compile-layout-editor {
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.compile-layout-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.compile-layout-field label {
+  min-width: 140px;
+  color: #555;
+  font-size: 13px;
+}
+
+.compile-layout-field input[type="text"],
+.compile-layout-field input[type="number"] {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.compile-layout-field select {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.compile-layout-field input[type="checkbox"] {
+  margin: 0;
+}
+
+.compile-margins-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.compile-margins-grid label {
+  font-size: 12px;
+  color: #555;
+}
+
+.compile-margins-grid input {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+/* ── Footer ──────────────────────────────────────────────────── */
+
+.compile-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+}
+
+.compile-error {
+  color: red;
+  font-size: 13px;
+  margin-right: auto;
+}
+
+/* ── Mobile ──────────────────────────────────────────────────── */
+
+@media (max-width: 700px) {
+  .compile-body {
+    flex-direction: column;
+  }
+  .compile-left,
+  .compile-right {
+    max-height: none;
+  }
+  .compile-modal {
+    max-height: 90vh;
+  }
+}

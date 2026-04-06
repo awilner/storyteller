@@ -5,6 +5,11 @@ RUN apt-get update && \
         gcc default-libmysqlclient-dev pkg-config && \
     rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        pandoc texlive-latex-base texlive-fonts-recommended texlive-latex-extra lmodern calibre && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY backend/requirements.txt .
