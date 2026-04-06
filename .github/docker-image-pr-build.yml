@@ -1,0 +1,169 @@
+name: Build Docker Images
+permissions:
+  contents: read
+
+on:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python                                                                                                                                          
+        uses: actions/setup-python@v4                                                                                                                                
+        with:
+          python-version: '3.12'
+  
+      - name: Install dependencies                                                                                                                                   
+        working-directory: ./backend
+        run: |                                                                                                                                                       
+          python -m pip install --upgrade pip                                                                                                                        
+          pip install -r requirements.txt                                                                                                                    
+        # If you need environment variables or DB setup for your Django project,
+        # add steps here to configure them.
+
+      - name: Run unit tests
+        working-directory: ./backend
+        run: python manage.py test api
+
+  build-frontend:
+    runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Determine changed paths
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            build:
+              - 'frontend/**'
+              - '.github/workflows/**'
+              - 'docker/frontend.Dockerfile'
+            docs:
+              - 'README.md'
+              - '.gitignore'
+              - '.gitattributes'
+              - '.dockerignore'
+              - 'LICENSE'
+
+      # Note: static YAML linters may report errors about accessing
+      # `steps.changes.outputs.build` or `env.BUILD_CHANGED`. These are
+      # false positives because the value is provided at runtime by
+      # `dorny/paths-filter`. GitHub Actions supports these expressions
+      # and the workflow will evaluate them correctly during execution.
+      - name: Export build flag
+        run: |
+          echo "BUILD_CHANGED=${{ steps.changes.outputs['build'] }}" >> $GITHUB_ENV
+
+      - name: Skip build (only docs/images changed)
+        if: ${{ env.BUILD_CHANGED == 'false' }}
+        run: echo "No build-relevant changes detected — skipping Docker build."
+
+      - name: Set up Docker Buildx
+        if: ${{ env.BUILD_CHANGED == 'true' }}
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up QEMU
+        if: ${{ env.BUILD_CHANGED == 'true' }}
+        uses: docker/setup-qemu-action@v3
+
+      - name: Extract metadata (tags, labels) for Docker
+        if: ${{ env.BUILD_CHANGED == 'true' }}
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/awilner/storyteller/frontend
+
+      - name: Build the Docker image
+        if: ${{ env.BUILD_CHANGED == 'true' }}
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: false
+          platforms: ${{ matrix.platform }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  build-backend:
+    runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Determine changed paths
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            build:
+              - 'backend/**'
+              - 'docker/backend.Dockerfile'
+              - 'compose.yml'
+              - '.github/workflows/**'
+            docs:
+              - 'README.md'
+              - '.gitignore'
+              - '.gitattributes'
+              - '.dockerignore'
+              - 'LICENSE'
+
+      # Note: static YAML linters may report errors about accessing
+      # `steps.changes.outputs.build` or `env.BUILD_CHANGED`. These are
+      # false positives because the value is provided at runtime by
+      # `dorny/paths-filter`. GitHub Actions supports these expressions
+      # and the workflow will evaluate them correctly during execution.
+      - name: Export build flag
+        run: |
+          echo "BUILD_CHANGED=${{ steps.changes.outputs['build'] }}" >> $GITHUB_ENV
+
+      - name: Skip build (only docs/images changed)
+        if: ${{ env.BUILD_CHANGED == 'false' }}
+        run: echo "No build-relevant changes detected — skipping Docker build."
+
+      - name: Set up Docker Buildx
+        if: ${{ env.BUILD_CHANGED == 'true' }}
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up QEMU
+        if: ${{ env.BUILD_CHANGED == 'true' }}
+        uses: docker/setup-qemu-action@v3
+
+      - name: Extract metadata (tags, labels) for Docker
+        if: ${{ env.BUILD_CHANGED == 'true' }}
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/awilner/storyteller/backend
+
+      - name: Build the Docker image
+        if: ${{ env.BUILD_CHANGED == 'true' }}
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: false
+          platforms: ${{ matrix.platform }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
