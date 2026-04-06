@@ -11,7 +11,8 @@ import VersionHistoryPanel from "./VersionHistoryPanel";
 import PropertiesPanel from "./PropertiesPanel";
 import CompileDialog from "./CompileDialog";
 import ProjectSettings from "./ProjectSettings";
-import { fetchProjectTree, fetchFile, saveDraftCache, createVersion, createFolder, deleteFolder, createText, deleteText, updateFolder, updateText, updateProject, reorderTree, emptyTrash, exportScrivener, exportYWriter } from "./api";
+import { findFolderById } from "./treeUtils";
+import { fetchProjectTree, fetchFile, saveDraftCache, createVersion, createFolder, deleteFolder, createText, deleteText, updateFolder, updateText, updateProject, reorderTree, emptyTrash, exportScrivener, exportYWriter, duplicateFolder, duplicateText, copyToProject, fetchProjects } from "./api";
 import "./EditorView.css";
 
 const DEBOUNCE_MS = 2000;
@@ -254,15 +255,6 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   }, []);
 
   // Recursive helpers for nested folder tree
-  const findFolderById = useCallback((folders, id) => {
-    for (const f of folders || []) {
-      if (f.id === id) return f;
-      const found = findFolderById(f.children, id);
-      if (found) return found;
-    }
-    return null;
-  }, []);
-
   const findTextInTree = useCallback((treeData, fileId) => {
     const searchFolders = (folders) => {
       for (const f of folders || []) {
@@ -573,6 +565,40 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
     }
   }, [projectId, refreshTree]);
 
+  const handleDuplicateFolder = useCallback(async (folderId) => {
+    try {
+      await duplicateFolder(projectId, folderId);
+      await refreshTree();
+    } catch (err) {
+      setTreeError(err.message);
+    }
+  }, [projectId, refreshTree]);
+
+  const handleDuplicateText = useCallback(async (fileId) => {
+    try {
+      await duplicateText(projectId, fileId);
+      await refreshTree();
+    } catch (err) {
+      setTreeError(err.message);
+    }
+  }, [projectId, refreshTree]);
+
+  const handleCopyToProject = useCallback(async (type, itemId, targetProjectId) => {
+    try {
+      await copyToProject(projectId, { target_project_id: targetProjectId, type, id: itemId });
+    } catch (err) {
+      setTreeError(err.message);
+    }
+  }, [projectId]);
+
+  // Fetch other projects for "Copy to Project" submenu
+  const [otherProjects, setOtherProjects] = useState([]);
+  useEffect(() => {
+    fetchProjects().then((projects) => {
+      setOtherProjects(projects.filter((p) => p.id !== projectId));
+    }).catch(() => {});
+  }, [projectId]);
+
   useEffect(() => {
     return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
@@ -601,10 +627,15 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
           onChangeFolderIcon={handleChangeFolderIcon}
           onChangeTextIcon={handleChangeTextIcon}
           onEmptyTrash={handleEmptyTrash}
+          onDuplicateFolder={handleDuplicateFolder}
+          onDuplicateText={handleDuplicateText}
+          onCopyToProject={handleCopyToProject}
+          otherProjects={otherProjects}
           labels={tree?.labels}
           statuses={tree?.statuses}
           characters={tree?.characters}
           treeSettings={tree?.settings}
+          isMobile={isMobile}
         />
       )}
     </>

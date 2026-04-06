@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useI18n } from "./I18nContext";
 import LayoutEditor, { DEFAULT_LAYOUT_SETTINGS } from "./LayoutEditor";
+import { findFolderById, getRootFolders, getAllNonTrashFolders, findDefaultRoot } from "./treeUtils";
 import {
   fetchCompileLayouts,
   compileManuscript,
@@ -18,35 +19,6 @@ const FORMATS = [
   { value: "epub", key: "compile.format_epub" },
   { value: "mobi", key: "compile.format_mobi" },
 ];
-
-function getRootFolders(tree) {
-  if (!tree?.folders) return [];
-  return tree.folders.filter((f) => !f.is_trash);
-}
-
-function getAllNonTrashFolders(folders) {
-  const result = [];
-  for (const f of folders || []) {
-    if (f.is_trash) continue;
-    result.push(f);
-    result.push(...getAllNonTrashFolders(f.children));
-  }
-  return result;
-}
-
-function findDefaultRoot(tree) {
-  const roots = getRootFolders(tree);
-  return roots.find((f) => f.title.toLowerCase() === "manuscript") || roots[0] || null;
-}
-
-function findFolderById(folders, id) {
-  for (const f of folders || []) {
-    if (f.id === id) return f;
-    const found = findFolderById(f.children, id);
-    if (found) return found;
-  }
-  return null;
-}
 
 function CompileTreeNode({ folder, projectId, onToggle, parentIncluded }) {
   const included = folder.include_in_compile;

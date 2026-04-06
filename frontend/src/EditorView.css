@@ -19,6 +19,7 @@
   display: grid;
   grid-template-rows: auto 1fr auto;
   min-width: 0;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -158,6 +159,12 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.editor-mobile-body > .editor-center {
+  flex: 1;
+  min-height: 0;
+  height: 0;
 }
 
 .editor-mobile-tree {

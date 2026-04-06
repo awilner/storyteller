@@ -14,6 +14,7 @@ from rest_framework.response import Response
 
 from .exporters import export_scrivener, export_ywriter
 from .models import CompileLayout, FileVersion, Folder, Label, OIDCIdentity, Project, ProjectFile, Status
+from django.db import models as db_models
 from .oidc import exchange_code_for_claims, get_authorization_url
 from .permissions import IsProjectOwner
 from .scrivener import import_scrivener_zip
@@ -973,3 +974,133 @@ def compile_view(request, project_pk):
     response = HttpResponse(file_bytes, content_type=content_type)
     response["Content-Disposition"] = f'attachment; filename="{safe_filename}"'
     return response
+
+
+# ── Duplicate & Copy to Project ───────────────────────────────
+
+def _duplicate_folder_recursive(source_folder, target_project, target_parent, order, copy_suffix=""):
+    """Recursively duplicate a folder and its contents. Returns the new folder."""
+    new_folder = Folder.objects.create(
+        project=target_project,
+        parent=target_parent,
+        title=source_folder.title + copy_suffix,
+        description=source_folder.description,
+        notes=source_folder.notes,
+        tags=source_folder.tags,
+        target_word_count=source_folder.target_word_count,
+        icon=source_folder.icon,
+        order=order,
+    )
+    # Duplicate child items interleaved by order
+    child_folders = list(source_folder.children.order_by("order"))
+    child_texts = list(source_folder.texts.order_by("order"))
+    combined = [(cf.order, "folder", cf) for cf in child_folders if not cf.is_trash]
+    combined += [(ct.order, "text", ct) for ct in child_texts]
+    combined.sort(key=lambda x: x[0])
+    for i, (_, kind, obj) in enumerate(combined):
+        if kind == "folder":
+            _duplicate_folder_recursive(obj, target_project, new_folder, i)
+        else:
+            ProjectFile.objects.create(
+                project=target_project,
+                folder=new_folder,
+                file_type=obj.file_type,
+                title=obj.title,
+                description=obj.description,
+                notes=obj.notes,
+                tags=obj.tags,
+                target_word_count=obj.target_word_count,
+                icon=obj.icon,
+                content=obj.content,
+                order=i,
+            )
+    return new_folder
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated, IsProjectOwner])
+def duplicate_folder_view(request, project_pk, folder_pk):
+    """Duplicate a folder and all its contents right after the original."""
+    project = get_object_or_404(Project, pk=project_pk)
+    folder = get_object_or_404(Folder, pk=folder_pk, project=project)
+    if folder.is_trash:
+        return Response({"detail": _("Cannot duplicate the trash folder.")}, status=status.HTTP_400_BAD_REQUEST)
+    insert_order = folder.order + 1
+    # Shift siblings after the source to make room
+    Folder.objects.filter(project=project, parent=folder.parent, order__gte=insert_order).update(
+        order=db_models.F("order") + 1
+    )
+    new_folder = _duplicate_folder_recursive(folder, project, folder.parent, insert_order, copy_suffix=" copy")
+    return Response({"id": new_folder.pk, "title": new_folder.title}, status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated, IsProjectOwner])
+def duplicate_text_view(request, project_pk, file_pk):
+    """Duplicate a text file right after the original."""
+    project = get_object_or_404(Project, pk=project_pk)
+    text = get_object_or_404(ProjectFile, pk=file_pk, project=project)
+    insert_order = text.order + 1
+    # Shift siblings after the source to make room
+    ProjectFile.objects.filter(folder=text.folder, order__gte=insert_order).update(
+        order=db_models.F("order") + 1
+    )
+    new_text = ProjectFile.objects.create(
+        project=project,
+        folder=text.folder,
+        file_type=text.file_type,
+        title=text.title + " copy",
+        description=text.description,
+        notes=text.notes,
+        tags=text.tags,
+        target_word_count=text.target_word_count,
+        icon=text.icon,
+        content=text.content,
+        order=insert_order,
+    )
+    return Response({"id": new_text.pk, "title": new_text.title}, status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated, IsProjectOwner])
+def copy_to_project_view(request, project_pk):
+    """Copy a folder or text to another project."""
+    source_project = get_object_or_404(Project, pk=project_pk)
+    target_project_id = request.data.get("target_project_id")
+    item_type = request.data.get("type")  # "folder" or "text"
+    item_id = request.data.get("id")
+
+    if not target_project_id or not item_type or not item_id:
+        return Response({"detail": _("target_project_id, type, and id are required.")}, status=status.HTTP_400_BAD_REQUEST)
+
+    target_project = Project.objects.filter(pk=target_project_id, owner=request.user).first()
+    if not target_project:
+        return Response({"detail": _("Target project not found.")}, status=status.HTTP_404_NOT_FOUND)
+
+    # Find or create the "From <source project>" folder in the target
+    import_folder_title = f"From {source_project.title}"
+    import_folder = target_project.folders.filter(title=import_folder_title, parent__isnull=True).first()
+    if not import_folder:
+        next_order = (target_project.folders.filter(parent__isnull=True).aggregate(m=db_models.Max("order"))["m"] or 0) + 1
+        import_folder = Folder.objects.create(
+            project=target_project, title=import_folder_title, parent=None, order=next_order,
+        )
+
+    child_order = (import_folder.children.aggregate(m=db_models.Max("order"))["m"] or -1) + 1
+    text_order = (import_folder.texts.aggregate(m=db_models.Max("order"))["m"] or -1) + 1
+
+    if item_type == "folder":
+        folder = get_object_or_404(Folder, pk=item_id, project=source_project)
+        _duplicate_folder_recursive(folder, target_project, import_folder, child_order)
+    elif item_type == "text":
+        text = get_object_or_404(ProjectFile, pk=item_id, project=source_project)
+        ProjectFile.objects.create(
+            project=target_project, folder=import_folder, file_type=text.file_type,
+            title=text.title, description=text.description, notes=text.notes,
+            tags=text.tags, target_word_count=text.target_word_count, icon=text.icon,
+            content=text.content, order=text_order,
+        )
+    else:
+        return Response({"detail": _("type must be 'folder' or 'text'.")}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response({"detail": _("Copied.")}, status=status.HTTP_201_CREATED)

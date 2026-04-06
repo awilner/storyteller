@@ -318,3 +318,18 @@ export const compileManuscript = async (projectId, params) => {
   }
   return res;
 };
+
+
+// Duplicate
+export const duplicateFolder = (projectId, folderId) =>
+  request(`${API_BASE}/projects/${projectId}/folders/${folderId}/duplicate/`, { method: "POST" });
+
+export const duplicateText = (projectId, fileId) =>
+  request(`${API_BASE}/projects/${projectId}/texts/${fileId}/duplicate/`, { method: "POST" });
+
+// Copy to project
+export const copyToProject = (projectId, data) =>
+  request(`${API_BASE}/projects/${projectId}/copy-to-project/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });

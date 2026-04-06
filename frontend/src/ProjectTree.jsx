@@ -69,6 +69,7 @@ function toArboristNodes(tree) {
 function ContextMenu({ x, y, items, onClose }) {
   const ref = useRef(null);
   const [hoveredSubmenu, setHoveredSubmenu] = useState(null);
+  const [clickedSubmenu, setClickedSubmenu] = useState(null);
   useEffect(() => {
     const onClick = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -76,35 +77,24 @@ function ContextMenu({ x, y, items, onClose }) {
     document.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("mousedown", onClick); document.removeEventListener("keydown", onKey); };
   }, [onClose]);
-  const left = Math.min(x, window.innerWidth - 200);
+
+  const menuWidth = 180;
+  const left = Math.min(Math.max(4, x), window.innerWidth - menuWidth - 4);
   const top = Math.min(y, window.innerHeight - items.length * 32 - 16);
+
+  const openSubmenu = clickedSubmenu || hoveredSubmenu;
+
   return (
-    <div ref={ref} style={{ ...menuStyles.menu, left, top, position: "fixed" }} role="menu" aria-label="Context menu">
+    <div ref={ref} style={{ ...menuStyles.menu, left, top, position: "fixed", minWidth: menuWidth }} role="menu" aria-label="Context menu">
       {items.map((item, i) =>
         item.separator ? (
           <div key={`sep-${i}`} style={menuStyles.sep} />
         ) : item.submenu ? (
-          <div key={item.label} style={{ position: "relative" }}
-            onMouseEnter={() => setHoveredSubmenu(item.label)}
-            onMouseLeave={() => setHoveredSubmenu(null)}>
-            <button role="menuitem" style={{ ...menuStyles.item, display: "flex", justifyContent: "space-between" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "#f0f0f0"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}>
-              {item.label} <span style={{ marginLeft: 8, fontSize: 10 }}>▶</span>
-            </button>
-            {hoveredSubmenu === item.label && (
-              <div style={{ ...menuStyles.menu, position: "absolute", left: "100%", top: 0, marginLeft: -2 }}>
-                {item.submenu.map((sub) => (
-                  <button key={sub.label} role="menuitem" style={menuStyles.item}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = "#f0f0f0"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
-                    onClick={() => { sub.action(); onClose(); }}>
-                    {sub.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <SubmenuItem key={item.label} item={item} parentLeft={left} parentWidth={menuWidth}
+            isOpen={openSubmenu === item.label}
+            onHover={(label) => setHoveredSubmenu(label)}
+            onClick={(label) => setClickedSubmenu((prev) => prev === label ? null : label)}
+            onClose={onClose} />
         ) : (
           <button key={item.label} role="menuitem"
             style={{ ...menuStyles.item, color: item.danger ? "#c44" : "#222" }}
@@ -114,6 +104,64 @@ function ContextMenu({ x, y, items, onClose }) {
             {item.label}
           </button>
         )
+      )}
+    </div>
+  );
+}
+
+function SubmenuItem({ item, parentLeft, parentWidth, isOpen, onHover, onClick, onClose }) {
+  const wrapRef = useRef(null);
+  const subRef = useRef(null);
+  const [subStyle, setSubStyle] = useState(null);
+
+  useEffect(() => {
+    if (!isOpen || !wrapRef.current) { setSubStyle(null); return; }
+    const rect = wrapRef.current.getBoundingClientRect();
+    const subWidth = 180;
+    const subHeight = item.submenu.length * 32 + 8;
+    // Prefer right, fall back to left, fall back to below
+    let sl, st;
+    if (rect.right + subWidth <= window.innerWidth - 4) {
+      sl = rect.width - 2;
+      st = 0;
+    } else if (rect.left - subWidth >= 4) {
+      sl = -subWidth + 2;
+      st = 0;
+    } else {
+      // Open below, aligned left
+      sl = 0;
+      st = rect.height;
+    }
+    // Clamp vertically
+    const absTop = rect.top + st;
+    if (absTop + subHeight > window.innerHeight - 4) {
+      st -= (absTop + subHeight - window.innerHeight + 4);
+    }
+    setSubStyle({ position: "absolute", left: sl, top: st, minWidth: subWidth });
+  }, [isOpen, item.submenu.length]);
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative" }}
+      onMouseEnter={() => onHover(item.label)}
+      onMouseLeave={() => onHover(null)}>
+      <button role="menuitem"
+        style={{ ...menuStyles.item, display: "flex", justifyContent: "space-between" }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = "#f0f0f0"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+        onClick={(e) => { e.stopPropagation(); onClick(item.label); }}>
+        {item.label} <span style={{ marginLeft: 8, fontSize: 10 }}>▶</span>
+      </button>
+      {isOpen && subStyle && (
+        <div ref={subRef} style={{ ...menuStyles.menu, ...subStyle }}>
+          {item.submenu.map((sub) => (
+            <button key={sub.label} role="menuitem" style={menuStyles.item}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "#f0f0f0"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+              onClick={() => { sub.action(); onClose(); }}>
+              {sub.label}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -181,9 +229,12 @@ function getContrastColor(hex) {
 
 const iconStyle = { marginRight: 4, fontSize: "0.85rem", flexShrink: 0 };
 const nameStyle = { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 };
+const mobileMenuBtnStyle = { background: "none", border: "none", cursor: "pointer", padding: "2px 10px", fontSize: "1.1rem", color: "#888", lineHeight: 1, flexShrink: 0, marginRight: 4 };
 
 // Module-level colour metadata for the Node renderer
 let _colourMeta = { labels: [], statuses: [], characters: [], iconBgSource: "", textColourSource: "", textBgSource: "" };
+let _isMobile = false;
+let _onNodeMenu = null; // (rowIndex, clientX, clientY) => void
 
 function resolveColourForSource(nodeData, source, labels, statuses, characters) {
   if (!source) return null;
@@ -248,7 +299,11 @@ function Node({ node, style, dragHandle }) {
             onBlur={(e) => node.submit(e.currentTarget.value)}
             onKeyDown={(e) => { if (e.key === "Enter") node.submit(e.currentTarget.value); if (e.key === "Escape") node.reset(); }} />
         ) : (
-          <span style={{ ...nameStyle, ...getTitleColourStyle() }} title={data.name} onClick={() => node.activate()}>{data.name}</span>
+          <span style={{ ...nameStyle, ...getTitleColourStyle(), flex: 1 }} title={data.name} onClick={() => node.activate()}>{data.name}</span>
+        )}
+        {_isMobile && _onNodeMenu && (
+          <button type="button" style={mobileMenuBtnStyle}
+            onClick={(e) => { e.stopPropagation(); _onNodeMenu(node.rowIndex, e.clientX, e.clientY); }}>⋮</button>
         )}
       </div>
     );
@@ -268,7 +323,11 @@ function Node({ node, style, dragHandle }) {
           onBlur={(e) => node.submit(e.currentTarget.value)}
           onKeyDown={(e) => { if (e.key === "Enter") node.submit(e.currentTarget.value); if (e.key === "Escape") node.reset(); }} />
       ) : (
-        <span style={{ ...nameStyle, ...getTitleColourStyle() }} title={data.name}>{data.name}</span>
+        <span style={{ ...nameStyle, ...getTitleColourStyle(), flex: 1 }} title={data.name}>{data.name}</span>
+      )}
+      {_isMobile && _onNodeMenu && (
+        <button type="button" style={mobileMenuBtnStyle}
+          onClick={(e) => { e.stopPropagation(); _onNodeMenu(node.rowIndex, e.clientX, e.clientY); }}>⋮</button>
       )}
     </div>
   );
@@ -276,7 +335,7 @@ function Node({ node, style, dragHandle }) {
 
 /* ── Main component ────────────────────────────────────────── */
 
-export default function ProjectTree({ tree, onSelectFile, activeFileId, selectedFolderId, onSelectFolder, onAddFolder, onDeleteFolder, onAddText, onDeleteText, onReorder, onRenameFolder, onRenameText, onChangeFolderIcon, onChangeTextIcon, onEmptyTrash, labels, statuses, characters, treeSettings }) {
+export default function ProjectTree({ tree, onSelectFile, activeFileId, selectedFolderId, onSelectFolder, onAddFolder, onDeleteFolder, onAddText, onDeleteText, onReorder, onRenameFolder, onRenameText, onChangeFolderIcon, onChangeTextIcon, onEmptyTrash, onDuplicateFolder, onDuplicateText, onCopyToProject, otherProjects, labels, statuses, characters, treeSettings, isMobile }) {
   const t = useI18n();
   const [menu, setMenu] = useState(null);
   const [iconPicker, setIconPicker] = useState(null);
@@ -360,6 +419,53 @@ export default function ProjectTree({ tree, onSelectFile, activeFileId, selected
     return node._isTrash === true;
   }, []);
 
+  // Shared menu builder — used by both right-click and mobile three-dot
+  const buildMenuItems = useCallback((node, x, y) => {
+    const items = [];
+    if (!node) {
+      if (onAddFolder) items.push({ label: t("tree.new_folder"), action: () => onAddFolder(null) });
+      return items;
+    }
+    const d = node.data;
+    if (d._type === "folder") {
+      if (d._isTrash) {
+        if (onEmptyTrash) items.push({ label: t("trash.empty_trash"), action: () => onEmptyTrash() });
+      } else if (d._isInsideTrash) {
+        if (onDeleteFolder) items.push({ label: t("trash.permanently_delete"), danger: true, action: () => onDeleteFolder(d._dbId, d.name) });
+      } else {
+        const newSubmenu = [];
+        if (onAddFolder) newSubmenu.push({ label: t("tree.new_subfolder"), action: () => { node.open(); const title = window.prompt(t("tree.folder_title_prompt")); if (title?.trim()) onAddFolder(d._dbId, title.trim()); } });
+        if (onAddText) {
+          newSubmenu.push({ label: t("tree.new_text"), action: () => { node.open(); const title = window.prompt(t("tree.text_title_prompt")); if (title?.trim()) onAddText(d._dbId, title.trim(), "text"); } });
+          newSubmenu.push({ label: t("tree.new_character"), action: () => { node.open(); const title = window.prompt(t("tree.text_title_prompt")); if (title?.trim()) onAddText(d._dbId, title.trim(), "character"); } });
+          newSubmenu.push({ label: t("tree.new_location"), action: () => { node.open(); const title = window.prompt(t("tree.text_title_prompt")); if (title?.trim()) onAddText(d._dbId, title.trim(), "location"); } });
+          newSubmenu.push({ label: t("tree.new_note"), action: () => { node.open(); const title = window.prompt(t("tree.text_title_prompt")); if (title?.trim()) onAddText(d._dbId, title.trim(), "note"); } });
+        }
+        if (newSubmenu.length) items.push({ label: t("tree.new"), submenu: newSubmenu });
+        items.push({ label: t("tree.rename"), action: () => node.edit() });
+        if (onChangeFolderIcon) { items.push({ separator: true }); items.push({ label: t("tree.change_icon"), action: () => { setIconPicker({ x, y, currentIcon: d._icon, onSelect: (icon) => onChangeFolderIcon(d._dbId, icon) }); } }); }
+        if (onDuplicateFolder) items.push({ label: t("tree.duplicate"), action: () => onDuplicateFolder(d._dbId) });
+        if (onCopyToProject && otherProjects?.length) {
+          items.push({ label: t("tree.copy_to_project"), submenu: otherProjects.map((p) => ({ label: p.title, action: () => onCopyToProject("folder", d._dbId, p.id) })) });
+        }
+        if (onDeleteFolder) { items.push({ separator: true }); items.push({ label: t("tree.delete_folder"), danger: true, action: () => onDeleteFolder(d._dbId, d.name) }); }
+      }
+    } else if (d._type === "text") {
+      if (d._isInsideTrash) {
+        if (onDeleteText) items.push({ label: t("trash.permanently_delete"), danger: true, action: () => onDeleteText(d._dbId, d.name) });
+      } else {
+        items.push({ label: t("tree.rename"), action: () => node.edit() });
+        if (onChangeTextIcon) { items.push({ separator: true }); items.push({ label: t("tree.change_icon"), action: () => { setIconPicker({ x, y, currentIcon: d._icon, onSelect: (icon) => onChangeTextIcon(d._dbId, icon) }); } }); }
+        if (onDuplicateText) items.push({ label: t("tree.duplicate"), action: () => onDuplicateText(d._dbId) });
+        if (onCopyToProject && otherProjects?.length) {
+          items.push({ label: t("tree.copy_to_project"), submenu: otherProjects.map((p) => ({ label: p.title, action: () => onCopyToProject("text", d._dbId, p.id) })) });
+        }
+        if (onDeleteText) { items.push({ separator: true }); items.push({ label: t("tree.delete_text"), danger: true, action: () => onDeleteText(d._dbId, d.name) }); }
+      }
+    }
+    return items;
+  }, [t, onAddText, onAddFolder, onDeleteFolder, onDeleteText, onChangeFolderIcon, onChangeTextIcon, onEmptyTrash, onDuplicateFolder, onDuplicateText, onCopyToProject]);
+
   const handleContextMenu = useCallback((e) => {
     e.preventDefault();
     let node = null;
@@ -374,53 +480,9 @@ export default function ProjectTree({ tree, onSelectFile, activeFileId, selected
         el = el.parentElement;
       }
     }
-
-    const items = [];
-    if (node) {
-      const d = node.data;
-      if (d._type === "folder") {
-        if (d._isTrash) {
-          // Trash folder itself: only "Empty Trash"
-          if (onEmptyTrash) items.push({ label: t("trash.empty_trash"), action: () => onEmptyTrash() });
-        } else if (d._isInsideTrash) {
-          // Folder inside trash: only permanent delete
-          if (onDeleteFolder) { items.push({ label: t("trash.permanently_delete"), danger: true, action: () => onDeleteFolder(d._dbId, d.name) }); }
-        } else {
-          // Normal folder outside trash — "New" submenu
-          const newSubmenu = [];
-          if (onAddFolder) newSubmenu.push({ label: t("tree.new_subfolder"), action: () => { node.open(); const title = window.prompt(t("tree.folder_title_prompt")); if (title?.trim()) onAddFolder(d._dbId, title.trim()); } });
-          if (onAddText) {
-            newSubmenu.push({ label: t("tree.new_text"), action: () => { node.open(); const title = window.prompt(t("tree.text_title_prompt")); if (title?.trim()) onAddText(d._dbId, title.trim(), "text"); } });
-            newSubmenu.push({ label: t("tree.new_character"), action: () => { node.open(); const title = window.prompt(t("tree.text_title_prompt")); if (title?.trim()) onAddText(d._dbId, title.trim(), "character"); } });
-            newSubmenu.push({ label: t("tree.new_location"), action: () => { node.open(); const title = window.prompt(t("tree.text_title_prompt")); if (title?.trim()) onAddText(d._dbId, title.trim(), "location"); } });
-            newSubmenu.push({ label: t("tree.new_note"), action: () => { node.open(); const title = window.prompt(t("tree.text_title_prompt")); if (title?.trim()) onAddText(d._dbId, title.trim(), "note"); } });
-          }
-          if (newSubmenu.length) items.push({ label: t("tree.new"), submenu: newSubmenu });
-          items.push({ label: t("tree.rename"), action: () => node.edit() });
-          if (onChangeFolderIcon) {
-            items.push({ separator: true });
-            items.push({ label: t("tree.change_icon"), action: () => { setIconPicker({ x: e.clientX, y: e.clientY, currentIcon: d._icon, onSelect: (icon) => onChangeFolderIcon(d._dbId, icon) }); } });
-          }
-          if (onDeleteFolder) { items.push({ separator: true }); items.push({ label: t("tree.delete_folder"), danger: true, action: () => onDeleteFolder(d._dbId, d.name) }); }
-        }
-      } else if (d._type === "text") {
-        if (d._isInsideTrash) {
-          if (onDeleteText) { items.push({ label: t("trash.permanently_delete"), danger: true, action: () => onDeleteText(d._dbId, d.name) }); }
-        } else {
-          items.push({ label: t("tree.rename"), action: () => node.edit() });
-          if (onChangeTextIcon) {
-            items.push({ separator: true });
-            items.push({ label: t("tree.change_icon"), action: () => { setIconPicker({ x: e.clientX, y: e.clientY, currentIcon: d._icon, onSelect: (icon) => onChangeTextIcon(d._dbId, icon) }); } });
-          }
-          if (onDeleteText) { items.push({ separator: true }); items.push({ label: t("tree.delete_text"), danger: true, action: () => onDeleteText(d._dbId, d.name) }); }
-        }
-      }
-    } else {
-      if (onAddFolder) items.push({ label: t("tree.new_folder"), action: () => onAddFolder(null) });
-    }
-
+    const items = buildMenuItems(node, e.clientX, e.clientY);
     if (items.length) setMenu({ x: e.clientX, y: e.clientY, items });
-  }, [t, onAddText, onAddFolder, onDeleteFolder, onDeleteText, onChangeFolderIcon, onChangeTextIcon, onEmptyTrash]);
+  }, [buildMenuItems]);
 
   const handleRename = useCallback(({ id, name }) => {
     if (!name?.trim()) return;
@@ -442,6 +504,18 @@ export default function ProjectTree({ tree, onSelectFile, activeFileId, selected
     textColourSource: treeSettings?.tree_text_colour_source || "",
     textBgSource: treeSettings?.tree_text_bg_source || "",
   };
+
+  // Mobile three-dot menu support
+  const handleNodeMenu = useCallback((rowIndex, clientX, clientY) => {
+    if (!treeRef.current) return;
+    const node = treeRef.current.at(rowIndex);
+    if (!node) return;
+    const items = buildMenuItems(node, clientX, clientY);
+    if (items.length) setMenu({ x: clientX, y: clientY, items });
+  }, [buildMenuItems]);
+
+  _isMobile = !!isMobile;
+  _onNodeMenu = handleNodeMenu;
 
   return (
     <div ref={containerRef} style={{ width: "100%", height: "100%", fontFamily: "system-ui" }} onContextMenu={handleContextMenu}>

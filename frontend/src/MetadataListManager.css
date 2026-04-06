@@ -1,0 +1,17 @@
+.mdlist-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.mdlist-modal { background: #fff; border-radius: 8px; padding: 24px; width: 480px; max-width: 90vw; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 4px 24px rgba(0,0,0,0.2); }
+.mdlist-modal h3 { margin: 0 0 16px; }
+.mdlist-items { flex: 1; overflow-y: auto; margin-bottom: 12px; }
+.mdlist-row { display: flex; align-items: center; gap: 6px; padding: 4px 0; border-bottom: 1px solid #f0f0f0; }
+.mdlist-row--insert-before { border-top: 2px solid #4a90d9; margin-top: -1px; }
+.mdlist-row--dragging { opacity: 0.4; }
+.mdlist-grip { color: #bbb; cursor: grab; font-size: 14px; user-select: none; touch-action: none; }
+.mdlist-insert-line { height: 2px; background: #4a90d9; }
+.mdlist-name { flex: 1; min-width: 0; padding: 3px 6px; font-size: 13px; border: 1px solid #ddd; border-radius: 3px; }
+.mdlist-colour { width: 32px; height: 28px; padding: 1px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; }
+.mdlist-btn { background: none; border: 1px solid #ddd; border-radius: 3px; cursor: pointer; padding: 2px 6px; font-size: 13px; color: #555; }
+.mdlist-btn:hover { background: #f0f0f0; }
+.mdlist-btn--danger { color: #c44; }
+.mdlist-btn--danger:hover { background: #fee; }
+.mdlist-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-top: 12px; border-top: 1px solid #eee; }
+.mdlist-error { color: #c44; font-size: 12px; margin-top: 4px; }
