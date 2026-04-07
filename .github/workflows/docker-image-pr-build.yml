@@ -99,6 +99,9 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/awilner/storyteller/frontend
+          tags: |
+            # Add a tag based on the commit SHA
+            type=sha,prefix=
 
       - name: Build the Docker image
         if: ${{ env.BUILD_CHANGED == 'true' }}
@@ -106,7 +109,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           file: ./docker/frontend.Dockerfile 
-          push: false
+          push: true
           platforms: ${{ matrix.platform }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -169,6 +172,9 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/awilner/storyteller/backend
+          tags: |
+            # Add a tag based on the commit SHA
+            type=sha,prefix=
 
       - name: Build the Docker image
         if: ${{ env.BUILD_CHANGED == 'true' }}
@@ -176,7 +182,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           file: ./docker/backend.Dockerfile 
-          push: false
+          push: true
           platforms: ${{ matrix.platform }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
