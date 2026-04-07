@@ -106,7 +106,7 @@ jobs:
         id: build
         uses: docker/build-push-action@v6
         with:
-          context: ./frontend
+          file: ./docker/frontend.Dockerfile 
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=ghcr.io/awilner/storyteller/frontend,push-by-digest=true,name-canonical=true,push=true
 
@@ -165,7 +165,7 @@ jobs:
         id: build
         uses: docker/build-push-action@v6
         with:
-          context: ./backend
+          file: ./docker/backend.Dockerfile 
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=ghcr.io/awilner/storyteller/backend,push-by-digest=true,name-canonical=true,push=true
 

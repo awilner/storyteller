@@ -92,7 +92,7 @@ jobs:
         id: build
         uses: docker/build-push-action@v6
         with:
-          context: ./frontend
+          file: ./docker/frontend.Dockerfile 
           push: false
           platforms: ${{ matrix.platform }}
           tags: ${{ steps.meta.outputs.tags }}
@@ -162,7 +162,7 @@ jobs:
         id: build
         uses: docker/build-push-action@v6
         with:
-          context: ./backend
+          file: ./docker/backend.Dockerfile 
           push: false
           platforms: ${{ matrix.platform }}
           tags: ${{ steps.meta.outputs.tags }}
