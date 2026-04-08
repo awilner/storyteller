@@ -132,11 +132,11 @@ jobs:
       - name: Build the Docker image
         if: ${{ env.BUILD_CHANGED == 'true' }}
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           file: ./docker/frontend.Dockerfile 
           push: true
-          platforms: ${{ matrix.platform }}
+          platforms: linux/arm64,linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           #provenance: false
