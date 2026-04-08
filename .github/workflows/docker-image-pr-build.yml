@@ -139,7 +139,7 @@ jobs:
           platforms: linux/arm64,linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          #provenance: false
+          provenance: false
 
   build-backend:
     runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
@@ -229,7 +229,7 @@ jobs:
         with:
           file: ./docker/backend.Dockerfile 
           push: true
-          platforms: ${{ matrix.platform }}
+          platforms: linux/arm64,linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          #provenance: false
+          provenance: false
