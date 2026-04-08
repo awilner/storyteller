@@ -103,4 +103,8 @@ See the individual READMEs for development setup:
 
 - [Backend](backend/README.md) — Django API, Python 3.10+
 - [Frontend](frontend/README.md) — React SPA, Node.js 18+
-- [Docker](docker/README.md) — Building images locally
+- [Docker](docker/README.md) — Building images locall
+
+## Screenshots
+<img width="45%" alt="Project list" src="img/project_list.png" />
+<img width="45%" alt="Editor view" src="img/editor_view.png" />

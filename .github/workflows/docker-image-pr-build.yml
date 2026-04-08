@@ -16,6 +16,7 @@ on:
       - ".gitignore"
       - ".gitattributes"
       - ".dockerignore"
+      - "img/**"
       - "LICENSE"
 
 # Defines two custom environment variables for the workflow.
