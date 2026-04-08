@@ -144,6 +144,7 @@ jobs:
         id: build
         uses: docker/build-push-action@v6
         with:
+          context: .
           file: ./docker/backend.Dockerfile 
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=ghcr.io/awilner/storyteller/backend,push-by-digest=true,name-canonical=true,push=true
