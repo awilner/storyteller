@@ -7,6 +7,7 @@ import TopBar from "./TopBar";
 import AccountPage from "./AccountPage";
 import SettingsPage from "./SettingsPage";
 import OIDCCallback from "./OIDCCallback";
+import VersionBadge from "./VersionBadge";
 import "./App.css";
 
 export default function App() {
@@ -186,7 +187,7 @@ export default function App() {
 
   if (isOidcCallback) return <OIDCCallback onAuth={(u) => { setUser(u); setIsOidcCallback(false); }} />;
 
-  if (!user) return <AuthForm onAuth={setUser} oidcEnabled={oidcEnabled} />;
+  if (!user) return <><AuthForm onAuth={setUser} oidcEnabled={oidcEnabled} /><VersionBadge /></>;
 
   // Editor view when a project is selected
   if (selectedProjectId) {
@@ -312,6 +313,7 @@ export default function App() {
           onImported={(project) => setProjects((prev) => [project, ...prev])}
         />
       )}
+      <VersionBadge />
       </div>
     </div>
   );

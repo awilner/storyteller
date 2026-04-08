@@ -25,7 +25,7 @@ services:
       retries: 5
 
   backend:
-    image: storyteller-backend
+    image: ghcr.io/awilner/storyteller-backend:latest
     restart: unless-stopped
     env_file: .env
     depends_on:
@@ -35,7 +35,7 @@ services:
         condition: service_healthy
 
   frontend:
-    image: storyteller-frontend
+    image: ghcr.io/awilner/storyteller-frontend:latest
     restart: unless-stopped
     ports:
       - "80:80"

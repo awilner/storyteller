@@ -1,0 +1,25 @@
+.version-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: #999;
+  flex-shrink: 0;
+}
+.version-badge-link {
+  color: #999;
+  text-decoration: none;
+}
+.version-badge-link:hover {
+  color: #666;
+  text-decoration: underline;
+}
+.version-badge-update {
+  color: #e67e22;
+  text-decoration: none;
+  font-weight: 600;
+}
+.version-badge-update:hover {
+  text-decoration: underline;
+}

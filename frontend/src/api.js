@@ -333,3 +333,7 @@ export const copyToProject = (projectId, data) =>
     method: "POST",
     body: JSON.stringify(data),
   });
+
+
+// App version
+export const fetchAppVersion = () => request(`${API_BASE}/version/`);

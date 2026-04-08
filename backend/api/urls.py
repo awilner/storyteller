@@ -40,11 +40,13 @@ from .views import (
     text_create_view,
     text_detail_view,
     user_settings_view,
+    version_view,
 )
 
 urlpatterns = [
     # Public config
     path("config/", config_view, name="config"),
+    path("version/", version_view, name="version"),
     # Internationalization
     path("i18n/strings/", translations_view, name="translations"),
     # Auth

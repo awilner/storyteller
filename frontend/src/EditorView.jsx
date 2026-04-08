@@ -11,6 +11,7 @@ import VersionHistoryPanel from "./VersionHistoryPanel";
 import PropertiesPanel from "./PropertiesPanel";
 import CompileDialog from "./CompileDialog";
 import ProjectSettings from "./ProjectSettings";
+import VersionBadge from "./VersionBadge";
 import { findFolderById } from "./treeUtils";
 import { fetchProjectTree, fetchFile, saveDraftCache, createVersion, createFolder, deleteFolder, createText, deleteText, updateFolder, updateText, updateProject, reorderTree, emptyTrash, exportScrivener, exportYWriter, duplicateFolder, duplicateText, copyToProject, fetchProjects } from "./api";
 import "./EditorView.css";
@@ -607,38 +608,41 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   }, []);
 
   const sidebarContent = (
-    <>
-      {treeLoading && <p className="loading-text" style={{ padding: 12 }}>{t("editor.loading_project")}</p>}
-      {treeError && <p className="error-text" style={{ padding: 12 }}>{treeError}</p>}
-      {tree && (
-        <ProjectTree
-          tree={tree}
-          activeFileId={activeFileId}
-          onSelectFile={handleSelectFile}
-          onSelectFolder={handleSelectFolder}
-          selectedFolderId={selectedType === "folder" ? selectedItem?.id : null}
-          onAddFolder={handleAddFolder}
-          onDeleteFolder={handleDeleteFolder}
-          onAddText={handleAddText}
-          onDeleteText={handleDeleteText}
-          onReorder={handleReorder}
-          onRenameFolder={handleRenameFolder}
-          onRenameText={handleRenameText}
-          onChangeFolderIcon={handleChangeFolderIcon}
-          onChangeTextIcon={handleChangeTextIcon}
-          onEmptyTrash={handleEmptyTrash}
-          onDuplicateFolder={handleDuplicateFolder}
-          onDuplicateText={handleDuplicateText}
-          onCopyToProject={handleCopyToProject}
-          otherProjects={otherProjects}
-          labels={tree?.labels}
-          statuses={tree?.statuses}
-          characters={tree?.characters}
-          treeSettings={tree?.settings}
-          isMobile={isMobile}
-        />
-      )}
-    </>
+    <div className="editor-sidebar-inner">
+      <div className="editor-sidebar-tree">
+        {treeLoading && <p className="loading-text" style={{ padding: 12 }}>{t("editor.loading_project")}</p>}
+        {treeError && <p className="error-text" style={{ padding: 12 }}>{treeError}</p>}
+        {tree && (
+          <ProjectTree
+            tree={tree}
+            activeFileId={activeFileId}
+            onSelectFile={handleSelectFile}
+            onSelectFolder={handleSelectFolder}
+            selectedFolderId={selectedType === "folder" ? selectedItem?.id : null}
+            onAddFolder={handleAddFolder}
+            onDeleteFolder={handleDeleteFolder}
+            onAddText={handleAddText}
+            onDeleteText={handleDeleteText}
+            onReorder={handleReorder}
+            onRenameFolder={handleRenameFolder}
+            onRenameText={handleRenameText}
+            onChangeFolderIcon={handleChangeFolderIcon}
+            onChangeTextIcon={handleChangeTextIcon}
+            onEmptyTrash={handleEmptyTrash}
+            onDuplicateFolder={handleDuplicateFolder}
+            onDuplicateText={handleDuplicateText}
+            onCopyToProject={handleCopyToProject}
+            otherProjects={otherProjects}
+            labels={tree?.labels}
+            statuses={tree?.statuses}
+            characters={tree?.characters}
+            treeSettings={tree?.settings}
+            isMobile={isMobile}
+          />
+        )}
+      </div>
+      <VersionBadge />
+    </div>
   );
 
   const editorContent = (
