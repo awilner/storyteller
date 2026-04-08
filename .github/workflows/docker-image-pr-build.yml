@@ -136,9 +136,7 @@ jobs:
         with:
           file: ./docker/frontend.Dockerfile 
           push: true
-          platforms:
-            - linux/amd64
-            - linux/arm64
+          platforms: ${{ matrix.platform }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           provenance: false
@@ -231,9 +229,7 @@ jobs:
         with:
           file: ./docker/backend.Dockerfile 
           push: true
-          platforms:
-            - linux/amd64
-            - linux/arm64
+          platforms: ${{ matrix.platform }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           provenance: false
