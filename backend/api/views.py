@@ -67,7 +67,7 @@ def _read_current_version():
         with open(version_file, "r") as f:
             return f.read().strip()
     except FileNotFoundError:
-        return "0.0.0-dev"
+        return "v0.0.0-dev"
 
 
 def _check_latest_release():
@@ -106,7 +106,7 @@ def version_view(request):
     """Return current app version and latest release info."""
     current = _read_current_version()
     latest = _check_latest_release()
-    latest_tag = latest.get("tag", "").lstrip("v") if latest else ""
+    latest_tag = latest.get("tag", "") if latest else ""
     result = {
         "current": current,
         "repo_url": f"https://github.com/{_GITHUB_REPO}",

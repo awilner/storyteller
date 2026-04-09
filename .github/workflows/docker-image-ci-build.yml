@@ -124,7 +124,7 @@ jobs:
         uses: eball/write-tag-to-version-file@latest
         with:
           filename: ./backend/api/VERSION
-          placeholder: "0.0.0-dev"
+          placeholder: "v0.0.0-dev"
         if: github.event_name == 'release'
 
       - name: Log in to the Container registry
