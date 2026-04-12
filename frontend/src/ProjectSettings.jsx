@@ -90,14 +90,13 @@ function LayoutManager({ projectId, t }) {
 
 export default function ProjectSettings({ projectId, settings, onClose, onRefresh }) {
   const t = useI18n();
-  const [tab, setTab] = useState("labels");
+  const [tab, setTab] = useState("general");
   const [iconBgSource, setIconBgSource] = useState(settings?.tree_icon_bg_source || "");
   const [textColourSource, setTextColourSource] = useState(settings?.tree_text_colour_source || "");
   const [textBgSource, setTextBgSource] = useState(settings?.tree_text_bg_source || "");
+  const [autoSaveVal, setAutoSaveVal] = useState(settings?.auto_save_interval ?? "");
 
-  const handleTreeSetting = useCallback(async (key, value) => {
-    const setters = { tree_icon_bg_source: setIconBgSource, tree_text_colour_source: setTextColourSource, tree_text_bg_source: setTextBgSource };
-    setters[key](value);
+  const handleSetting = useCallback(async (key, value) => {
     try {
       await updateProject(projectId, { settings: { ...settings, [key]: value } });
       if (onRefresh) onRefresh();
@@ -118,21 +117,35 @@ export default function ProjectSettings({ projectId, settings, onClose, onRefres
       <div className="psettings-modal">
         <h3>{t("topbar.project_settings")}</h3>
         <div className="psettings-tabs">
+          <button type="button" className={`psettings-tab${tab === "general" ? " psettings-tab--active" : ""}`} onClick={() => setTab("general")}>{t("settings.general_tab")}</button>
           <button type="button" className={`psettings-tab${tab === "labels" ? " psettings-tab--active" : ""}`} onClick={() => setTab("labels")}>{t("labels.title")}</button>
           <button type="button" className={`psettings-tab${tab === "statuses" ? " psettings-tab--active" : ""}`} onClick={() => setTab("statuses")}>{t("statuses.title")}</button>
-          <button type="button" className={`psettings-tab${tab === "tree" ? " psettings-tab--active" : ""}`} onClick={() => setTab("tree")}>{t("settings.tree_tab")}</button>
           <button type="button" className={`psettings-tab${tab === "layouts" ? " psettings-tab--active" : ""}`} onClick={() => setTab("layouts")}>{t("settings.layouts_tab")}</button>
         </div>
         <div className="psettings-body">
-          {tab === "labels" && <LabelManager projectId={projectId} onClose={() => {}} embedded />}
-          {tab === "statuses" && <StatusManager projectId={projectId} onClose={() => {}} embedded />}
-          {tab === "tree" && (
+          {tab === "general" && (
             <div className="psettings-colour-section">
-              <div className="psettings-field"><label>{t("settings.tree_icon_bg")}</label><select value={iconBgSource} onChange={(e) => handleTreeSetting("tree_icon_bg_source", e.target.value)}>{sourceOptions}</select></div>
-              <div className="psettings-field"><label>{t("settings.tree_text_colour")}</label><select value={textColourSource} onChange={(e) => handleTreeSetting("tree_text_colour_source", e.target.value)}>{sourceOptions}</select></div>
-              <div className="psettings-field"><label>{t("settings.tree_text_bg")}</label><select value={textBgSource} onChange={(e) => handleTreeSetting("tree_text_bg_source", e.target.value)}>{sourceOptions}</select></div>
+              <div className="psettings-field">
+                <label>{t("settings.auto_save_interval")}</label>
+                <input type="number" min="0" step="10" style={{ width: 100, padding: "4px 8px", border: "1px solid #ccc", borderRadius: 4, fontSize: 13 }}
+                  value={autoSaveVal}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    setAutoSaveVal(raw);
+                    const num = raw === "" ? null : Math.max(0, parseInt(raw, 10) || 0);
+                    handleSetting("auto_save_interval", num);
+                  }} />
+              </div>
+              <p style={{ fontSize: 11, color: "#999", margin: "0 0 16px" }}>{t("settings.auto_save_project_hint")}</p>
+
+              <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#555" }}>{t("settings.project_tree_section")}</h4>
+              <div className="psettings-field"><label>{t("settings.tree_icon_bg")}</label><select value={iconBgSource} onChange={(e) => { setIconBgSource(e.target.value); handleSetting("tree_icon_bg_source", e.target.value); }}>{sourceOptions}</select></div>
+              <div className="psettings-field"><label>{t("settings.tree_text_colour")}</label><select value={textColourSource} onChange={(e) => { setTextColourSource(e.target.value); handleSetting("tree_text_colour_source", e.target.value); }}>{sourceOptions}</select></div>
+              <div className="psettings-field"><label>{t("settings.tree_text_bg")}</label><select value={textBgSource} onChange={(e) => { setTextBgSource(e.target.value); handleSetting("tree_text_bg_source", e.target.value); }}>{sourceOptions}</select></div>
             </div>
           )}
+          {tab === "labels" && <LabelManager projectId={projectId} onClose={() => {}} embedded />}
+          {tab === "statuses" && <StatusManager projectId={projectId} onClose={() => {}} embedded />}
           {tab === "layouts" && <LayoutManager projectId={projectId} t={t} />}
         </div>
         <div className="psettings-footer">
