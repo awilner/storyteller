@@ -13,7 +13,7 @@ import CompileDialog from "./CompileDialog";
 import ProjectSettings from "./ProjectSettings";
 import VersionBadge from "./VersionBadge";
 import { findFolderById } from "./treeUtils";
-import { fetchProjectTree, fetchFile, saveDraftCache, createVersion, createFolder, deleteFolder, createText, deleteText, updateFolder, updateText, updateProject, reorderTree, emptyTrash, exportScrivener, exportYWriter, duplicateFolder, duplicateText, copyToProject, fetchProjects } from "./api";
+import { fetchProjectTree, fetchFile, saveDraftCache, createVersion, createFolder, deleteFolder, createText, deleteText, updateFolder, updateText, updateProject, reorderTree, emptyTrash, exportScrivener, exportYWriter, duplicateFolder, duplicateText, copyToProject, fetchProjects, fetchUserSettings } from "./api";
 import "./EditorView.css";
 
 const DEBOUNCE_MS = 2000;
@@ -606,6 +606,36 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
       setProjectFont("");
     };
   }, []);
+
+  // ── Auto-save ──────────────────────────────────────────────
+  const [userAutoSave, setUserAutoSave] = useState(60);
+  useEffect(() => {
+    fetchUserSettings().then((prefs) => {
+      if (prefs.auto_save_interval != null) setUserAutoSave(prefs.auto_save_interval);
+    }).catch(() => {});
+  }, []);
+
+  const autoSaveInterval = tree?.settings?.auto_save_interval ?? userAutoSave ?? 60;
+  const autoSaveRef = useRef(null);
+
+  useEffect(() => {
+    if (autoSaveRef.current) clearInterval(autoSaveRef.current);
+    if (!autoSaveInterval || autoSaveInterval <= 0) return;
+
+    autoSaveRef.current = setInterval(async () => {
+      const fid = activeFileRef.current;
+      if (fid && draftRef.current != null) {
+        try {
+          await createVersion(fid, draftRef.current);
+          draftRef.current = null;
+        } catch {
+          // silent — don't disrupt the user
+        }
+      }
+    }, autoSaveInterval * 1000);
+
+    return () => { if (autoSaveRef.current) clearInterval(autoSaveRef.current); };
+  }, [autoSaveInterval]);
 
   const sidebarContent = (
     <div className="editor-sidebar-inner">

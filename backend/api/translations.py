@@ -149,6 +149,9 @@ def _get_ui_strings():
         "settings.use_default": _("Use default (from user settings)"),
         "settings.font_hint": _("This font is used in the text editor across all projects unless overridden in project settings."),
         "settings.font_preview": _("The quick brown fox jumps over the lazy dog."),
+        "settings.auto_save_interval": _("Auto-save interval (seconds)"),
+        "settings.auto_save_hint": _("How often unsaved changes are automatically saved. Set to 0 to disable. Default: 60 seconds."),
+        "settings.auto_save_project_hint": _("Override the auto-save interval for this project. Leave empty to use the user default."),
         "versions.loading": _("Loading versions…"),
         "versions.no_versions": _("No versions yet."),
         "versions.chars": _("chars"),
@@ -255,7 +258,8 @@ def _get_ui_strings():
         "topbar.manage_statuses": _("Manage Statuses"),
 
         # Tree display settings
-        "settings.tree_tab": _("Tree"),
+        "settings.general_tab": _("General"),
+        "settings.project_tree_section": _("Project tree"),
         "settings.layouts_tab": _("Layouts"),
         "settings.tree_icon_bg": _("Icon background"),
         "settings.tree_text_colour": _("Text colour"),
