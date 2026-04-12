@@ -32,6 +32,7 @@ I created this after looking for a self-hosted version of apps like Scrivener or
 - OIDC single sign-on (optional)
 - Internationalization support
 - Mobile-responsive layout
+- Auto-save with configurable interval
 
 ## Architecture
 
@@ -46,7 +47,7 @@ I created this after looking for a self-hosted version of apps like Scrivener or
 - Frontend: React SPA served by nginx, proxies `/api/` to the backend
 - Backend: Django + Django REST Framework with Pandoc for document compilation
 - MariaDB: persistent storage for projects, folders, files, metadata
-- Redis: draft caching layer
+- Redis: draft caching layer - caches changes every 2s, keeps them for 24h maximum (if autosave is enabled, cached changes are persisted to the DB at regular intervals)
 
 ## Deployment with Docker
 
@@ -103,7 +104,7 @@ See the individual READMEs for development setup:
 
 - [Backend](backend/README.md) — Django API, Python 3.10+
 - [Frontend](frontend/README.md) — React SPA, Node.js 18+
-- [Docker](docker/README.md) — Building images locall
+- [Docker](docker/README.md) — Building images locally
 
 ## Screenshots
 <img width="45%" alt="Project list" src="img/project_list.png" />
