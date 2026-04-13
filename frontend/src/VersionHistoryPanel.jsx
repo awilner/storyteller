@@ -3,7 +3,7 @@ import { fetchVersions, fetchVersion, revertVersion } from "./api";
 import { useI18n } from "./I18nContext";
 import "./VersionHistoryPanel.css";
 
-export default function VersionHistoryPanel({ fileId, onRevert }) {
+export default function VersionHistoryPanel({ fileId, onRevert, refreshKey }) {
   const t = useI18n();
   const [open, setOpen] = useState(false);
   const [versions, setVersions] = useState([]);
@@ -22,7 +22,7 @@ export default function VersionHistoryPanel({ fileId, onRevert }) {
       .then((data) => setVersions(data))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [fileId, open]);
+  }, [fileId, open, refreshKey]);
 
   const handleSelectVersion = async (version) => {
     if (selectedVersion?.id === version.id) {
