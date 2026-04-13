@@ -83,6 +83,8 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   const draftRef = useRef(null);
   const debounceTimer = useRef(null);
   const activeFileRef = useRef(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [propsCollapsed, setPropsCollapsed] = useState(false);
 
   // ── URL sync ───────────────────────────────────────────────
   // Keep a ref so the popstate handler always sees the latest without re-registering.
@@ -778,9 +780,26 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
     <div className="editor-desktop-wrapper">
       <TopBar projectTitle={tree?.title} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} onExportScrivener={handleExportScrivener} onExportYWriter={handleExportYWriter} onCompile={handleCompile} onProjectSettings={handleProjectSettings} />
       <div className="editor-desktop-body">
-        <div className="editor-sidebar">{sidebarContent}</div>
-        {editorContent}
-        {(selectedItem || activeFileId) && propertiesContent}
+        {!sidebarCollapsed && (
+          <div className="editor-sidebar">{sidebarContent}</div>
+        )}
+        <div className="editor-center-wrapper">
+          <button type="button" className="editor-toggle-btn editor-toggle-btn--left" onClick={() => setSidebarCollapsed((v) => !v)} title={sidebarCollapsed ? "Show tree" : "Hide tree"}>
+            {sidebarCollapsed ? "▶" : "◀"}
+          </button>
+          {editorContent}
+          {(selectedItem || activeFileId) && (
+            <button type="button" className="editor-toggle-btn editor-toggle-btn--right" onClick={() => setPropsCollapsed((v) => !v)} title={propsCollapsed ? "Show properties" : "Hide properties"}>
+              {propsCollapsed ? "◀" : "▶"}
+            </button>
+          )}
+        </div>
+        {(selectedItem || activeFileId) && !propsCollapsed && (
+          <div className="editor-right-panel">
+            {selectedItem && <PropertiesPanel item={selectedItem} type={selectedType} onSave={handleSaveProperties} characters={tree?.characters} labels={tree?.labels} statuses={tree?.statuses} />}
+            {activeFileId && <VersionHistoryPanel fileId={activeFileId} onRevert={handleRevert} refreshKey={versionKey} />}
+          </div>
+        )}
       </div>
       {compileOpen && <CompileDialog projectId={projectId} tree={tree} onClose={() => setCompileOpen(false)} />}
       {projectSettingsOpen && <ProjectSettings projectId={projectId} settings={tree?.settings} onClose={handleCloseProjectSettings} onRefresh={refreshTree} />}
