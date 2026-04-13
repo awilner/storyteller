@@ -343,6 +343,30 @@ export default function ProjectTree({ tree, onSelectFile, activeFileId, selected
   const containerRef = useRef(null);
   const [treeHeight, setTreeHeight] = useState(600);
 
+  // Persist tree open/closed state per project
+  const projectId = tree?.id;
+  const storageKey = projectId ? `storyteller-tree-open-${projectId}` : null;
+
+  const [initialOpenState] = useState(() => {
+    if (!storageKey) return {};
+    try {
+      const saved = localStorage.getItem(storageKey);
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  const handleToggle = useCallback((id) => {
+    if (!storageKey) return;
+    try {
+      const saved = localStorage.getItem(storageKey);
+      const openState = saved ? JSON.parse(saved) : {};
+      // Toggle: if currently open (or defaulting to open), set to closed, and vice versa
+      const wasOpen = openState[id] !== undefined ? openState[id] : true;
+      openState[id] = !wasOpen;
+      localStorage.setItem(storageKey, JSON.stringify(openState));
+    } catch { /* ignore */ }
+  }, [storageKey]);
+
   useEffect(() => {
     if (!containerRef.current) return;
     const ro = new ResizeObserver(([entry]) => {
@@ -529,7 +553,9 @@ export default function ProjectTree({ tree, onSelectFile, activeFileId, selected
         onRename={handleRename}
         disableDrop={disableDrop}
         disableDrag={disableDrag}
-        openByDefault
+        initialOpenState={initialOpenState}
+        openByDefault={Object.keys(initialOpenState).length === 0}
+        onToggle={handleToggle}
         width="100%"
         height={treeHeight - 40}
         indent={16}

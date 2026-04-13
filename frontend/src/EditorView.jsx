@@ -64,7 +64,18 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   const [treeLoading, setTreeLoading] = useState(true);
   const [treeError, setTreeError] = useState(null);
 
-  const [activeFileId, setActiveFileId] = useState(initialFileId || null);
+  const [activeFileId, setActiveFileId] = useState(() => {
+    if (initialFileId) return initialFileId;
+    // Restore last selection from localStorage
+    try {
+      const saved = localStorage.getItem(`storyteller-selection-${projectId}`);
+      if (saved) {
+        const { type, id } = JSON.parse(saved);
+        if (type === "file") return id;
+      }
+    } catch { /* ignore */ }
+    return null;
+  });
   const [fileContent, setFileContent] = useState(null);
   const [fileLoading, setFileLoading] = useState(false);
   const [fileError, setFileError] = useState(null);
@@ -117,6 +128,17 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
         window.history.pushState(null, "", path);
       }
     }
+  }, [activeFileId, selectedItem, selectedType, projectId]);
+
+  // Persist selection to localStorage
+  useEffect(() => {
+    try {
+      if (activeFileId) {
+        localStorage.setItem(`storyteller-selection-${projectId}`, JSON.stringify({ type: "file", id: activeFileId }));
+      } else if (selectedType === "folder" && selectedItem?.id) {
+        localStorage.setItem(`storyteller-selection-${projectId}`, JSON.stringify({ type: "folder", id: selectedItem.id }));
+      }
+    } catch { /* ignore */ }
   }, [activeFileId, selectedItem, selectedType, projectId]);
 
   // Browser back/forward — use refs to avoid dependency churn
@@ -183,6 +205,7 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   }, [activeFileId]);
 
   // Update selectedItem when activeFileId or tree changes
+  const restoredRef = useRef(false);
   useEffect(() => {
     if (!tree) return;
     if (activeFileId) {
@@ -191,11 +214,26 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
         setSelectedItem(textItem);
         setSelectedType("text");
       } else {
-        // URL points to something that isn't a text — clear it
         setActiveFileId(null);
         setSelectedItem(null);
         setSelectedType(null);
       }
+    } else if (!restoredRef.current) {
+      // One-time: restore folder selection from localStorage
+      restoredRef.current = true;
+      try {
+        const saved = localStorage.getItem(`storyteller-selection-${projectId}`);
+        if (saved) {
+          const { type, id } = JSON.parse(saved);
+          if (type === "folder") {
+            const folder = findFolderById(tree?.folders, id);
+            if (folder) {
+              setSelectedItem(folder);
+              setSelectedType("folder");
+            }
+          }
+        }
+      } catch { /* ignore */ }
     }
   }, [activeFileId, tree]);
 
