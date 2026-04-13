@@ -70,6 +70,7 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   const [fileError, setFileError] = useState(null);
 
   const [saving, setSaving] = useState(false);
+  const [versionKey, setVersionKey] = useState(0);
   const [cacheWarning, setCacheWarning] = useState(null);
 
   const [editorInstance, setEditorInstance] = useState(null);
@@ -332,6 +333,7 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
     try {
       await createVersion(activeFileId, draftRef.current);
       draftRef.current = null;
+      setVersionKey((k) => k + 1);
       await loadFile(activeFileId);
     } catch (err) {
       setFileError(t("editor.save_failed", { error: err.message }));
@@ -628,6 +630,7 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
         try {
           await createVersion(fid, draftRef.current);
           draftRef.current = null;
+          setVersionKey((k) => k + 1);
         } catch {
           // silent — don't disrupt the user
         }
@@ -745,7 +748,7 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   const propertiesContent = (
     <div className={isMobile ? "editor-right-panel--mobile" : "editor-right-panel"}>
       {selectedItem && <PropertiesPanel item={selectedItem} type={selectedType} onSave={handleSaveProperties} characters={tree?.characters} labels={tree?.labels} statuses={tree?.statuses} />}
-      {activeFileId && <VersionHistoryPanel fileId={activeFileId} onRevert={handleRevert} />}
+      {activeFileId && <VersionHistoryPanel fileId={activeFileId} onRevert={handleRevert} refreshKey={versionKey} />}
     </div>
   );
 
