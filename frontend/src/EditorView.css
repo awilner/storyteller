@@ -105,6 +105,7 @@
   border-left: 1px solid #ddd;
   overflow-y: auto;
   background: #fafafa;
+  position: relative;
 }
 
 .editor-right-panel--mobile {
@@ -211,3 +212,37 @@
   min-height: 0;
   overflow: hidden;
 }
+
+/* ── Collapsible sidebars ────────────────────────────────────── */
+
+.editor-center-wrapper {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.editor-center-wrapper > .editor-center {
+  flex: 1;
+  min-height: 0;
+}
+
+.editor-toggle-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 10px;
+  color: #999;
+  padding: 8px 3px;
+  line-height: 1;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+.editor-toggle-btn:hover { background: #f5f5f5; color: #555; }
+.editor-toggle-btn--left { left: 4px; }
+.editor-toggle-btn--right { right: 4px; }
