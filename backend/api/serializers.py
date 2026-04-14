@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
-from .models import CompileLayout, FileVersion, Folder, Label, Project, ProjectFile, Status
+from .models import CompileLayout, DailyWordCount, FileVersion, Folder, Label, ManuscriptWordCount, Project, ProjectFile, SessionWordCount, Status
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -186,6 +186,24 @@ class CompileLayoutSerializer(serializers.ModelSerializer):
         model = CompileLayout
         fields = ["id", "name", "settings", "created_at", "updated_at"]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class ManuscriptWordCountSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ManuscriptWordCount
+        fields = ["date", "word_count"]
+
+
+class DailyWordCountSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DailyWordCount
+        fields = ["date", "word_count"]
+
+
+class SessionWordCountSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SessionWordCount
+        fields = ["id", "started_at", "ended_at", "word_count"]
 
 
 class CompileRequestSerializer(serializers.Serializer):

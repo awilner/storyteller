@@ -28,6 +28,7 @@ from .views import (
     oidc_link_view,
     oidc_login_view,
     oidc_unlink_view,
+    progress_view,
     project_detail_view,
     project_list_view,
     project_tree_view,
@@ -92,4 +93,6 @@ urlpatterns = [
     path("projects/<int:project_pk>/compile-layouts/<int:layout_pk>/", compile_layout_detail_view, name="compile-layout-detail"),
     # Compile
     path("projects/<int:project_pk>/compile/", compile_view, name="project-compile"),
+    # Progress tracking
+    path("projects/<int:project_pk>/progress/", progress_view, name="project-progress"),
 ]

@@ -335,5 +335,21 @@ export const copyToProject = (projectId, data) =>
   });
 
 
+// Progress tracking
+export const fetchProgress = (projectId) =>
+  request(`${API_BASE}/projects/${projectId}/progress/`);
+
+export const updateProgress = (projectId, data) =>
+  request(`${API_BASE}/projects/${projectId}/progress/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+
+export const resetSession = (projectId) =>
+  request(`${API_BASE}/projects/${projectId}/progress/`, {
+    method: "POST",
+    body: JSON.stringify({ action: "reset_session" }),
+  });
+
 // App version
 export const fetchAppVersion = () => request(`${API_BASE}/version/`);

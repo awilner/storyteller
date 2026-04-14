@@ -3,7 +3,7 @@ import { useI18n } from "./I18nContext";
 import logoSrc from "../resources/Storyteller.svg";
 import "./TopBar.css";
 
-export default function TopBar({ projectTitle, onHome, username, onAccount, onSettings, onLogout, onExportScrivener, onExportYWriter, onCompile, onProjectSettings }) {
+export default function TopBar({ projectTitle, onHome, username, onAccount, onSettings, onLogout, onExportScrivener, onExportYWriter, onCompile, onProjectSettings, onProgressTracking }) {
   const t = useI18n();
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
@@ -26,7 +26,7 @@ export default function TopBar({ projectTitle, onHome, username, onAccount, onSe
 
   const logoClass = `topbar-logo${onHome ? " topbar-logo-clickable" : ""}`;
 
-  const hasProjectMenu = onExportScrivener || onExportYWriter || onCompile || onProjectSettings;
+  const hasProjectMenu = onExportScrivener || onExportYWriter || onCompile || onProjectSettings || onProgressTracking;
 
   return (
     <div className="topbar">
@@ -54,7 +54,13 @@ export default function TopBar({ projectTitle, onHome, username, onAccount, onSe
                       {t("topbar.project_settings")}
                     </button>
                   )}
-                  {(onCompile || onProjectSettings) && (onExportScrivener || onExportYWriter) && (
+                  {onProgressTracking && (
+                    <button type="button" className="topbar-dropdown-item"
+                      onClick={() => { setProjectDropdownOpen(false); onProgressTracking(); }}>
+                      {t("topbar.progress_tracking")}
+                    </button>
+                  )}
+                  {(onCompile || onProjectSettings || onProgressTracking) && (onExportScrivener || onExportYWriter) && (
                     <div className="section-divider" />
                   )}
                   {onExportScrivener && (

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { fetchMe, fetchProjects, createProject, deleteProject, updateProject, logout, fetchConfig, exportScrivener, exportYWriter } from "./api";
+import { fetchMe, fetchProjects, createProject, deleteProject, updateProject, logout, fetchConfig, exportScrivener, exportYWriter, fetchProgress } from "./api";
+import { useI18n } from "./I18nContext";
 import AuthForm from "./AuthForm";
 import EditorView from "./EditorView";
 import ImportModal from "./ImportModal";
@@ -9,6 +10,36 @@ import SettingsPage from "./SettingsPage";
 import OIDCCallback from "./OIDCCallback";
 import VersionBadge from "./VersionBadge";
 import "./App.css";
+
+function ProjectProgress({ projectId }) {
+  const t = useI18n();
+  const [data, setData] = useState(null);
+  useEffect(() => {
+    fetchProgress(projectId).then(setData).catch(() => {});
+  }, [projectId]);
+  if (!data) return null;
+  const hasMs = data.manuscript_target != null;
+  const hasDaily = data.daily_target != null;
+  if (!hasMs && !hasDaily) return null;
+  const msPct = hasMs ? Math.min(Math.round((data.current_word_count / data.manuscript_target) * 100), 100) : 0;
+  const dailyPct = hasDaily ? Math.min(Math.round((data.daily_word_count / data.daily_target) * 100), 100) : 0;
+  return (
+    <div style={{ marginTop: 6, fontSize: 12, color: "#666", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+      {hasMs && (
+        <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <span>{t("dashboard.manuscript_progress")}:</span>
+          <span style={{ display: "inline-block", width: 60, height: 6, background: "#e0e0e0", borderRadius: 3, overflow: "hidden" }}>
+            <span style={{ display: "block", height: "100%", width: `${msPct}%`, background: "#4a90d9", borderRadius: 3 }} />
+          </span>
+          <span>{msPct}%</span>
+        </span>
+      )}
+      {hasDaily && (
+        <span>{t("dashboard.daily_progress")}: {data.daily_word_count}/{data.daily_target} ({dailyPct}%)</span>
+      )}
+    </div>
+  );
+}
 
 export default function App() {
   // Handle OIDC callback route — must be before any conditional logic
@@ -197,6 +228,7 @@ export default function App() {
           projectId={selectedProjectId}
           initialFileId={initialFileId}
           initialFolderId={initialFolderId}
+          initialProgressOpen={/^\/projects\/\d+\/progress\/?$/.test(window.location.pathname)}
           onLogout={handleLogout}
           onDashboard={() => setSelectedProjectId(null)}
           username={user.username}
@@ -285,6 +317,7 @@ export default function App() {
                   <div>
                     <strong>{p.title}</strong>
                     {p.description && <p className="project-description">{p.description}</p>}
+                    <ProjectProgress projectId={p.id} />
                   </div>
                   <div className="project-card-buttons">
                     <button type="button" onClick={() => setSelectedProjectId(p.id)} className="btn btn-primary">Open</button>

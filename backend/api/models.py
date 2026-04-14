@@ -253,6 +253,61 @@ class CompileLayout(models.Model):
         return self.name
 
 
+class ManuscriptWordCount(models.Model):
+    """Daily word count snapshot for a manuscript (sum of all texts in compile)"""
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="manuscript_word_count")
+    date = models.DateField()
+    word_count = models.PositiveIntegerField(default=0)
+    start_word_count = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("project", "date")
+        ordering = ["date"]
+
+    def __str__(self):
+        return f"{self.project} - {self.date}: {self.word_count}"
+
+
+class DailyWordCount(models.Model):
+    """Records a user's daily contributions to a project."""
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="daily_word_count")
+    date = models.DateField()
+    word_count = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="daily_word_count",
+    )
+    class Meta:
+        unique_together = ("project", "date", "user")
+        ordering = ["date"]
+
+    def __str__(self):
+        return f"{self.project} {self.user} {self.date} daily: {self.word_count}"
+
+
+class SessionWordCount(models.Model):
+    """Records a user's completed writing session on a project with word count."""
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="session_word_count")
+    started_at = models.DateTimeField()
+    ended_at = models.DateTimeField(auto_now_add=True)
+    word_count = models.IntegerField(default=0)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="session_word_count",
+    )
+    
+    class Meta:
+        ordering = ["-ended_at"]
+
+    def __str__(self):
+        return f"{self.project} {self.user} {self.ended_at} session: {self.word_count}"
+
 class OIDCIdentity(models.Model):
     """Links an OIDC provider subject to a local Django user."""
 
