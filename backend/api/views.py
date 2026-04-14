@@ -251,8 +251,9 @@ def oidc_callback_view(request):
     try:
         claims = exchange_code_for_claims(code, redirect_uri)
     except Exception as exc:
+        logger.error("OIDC token exchange failed", exc_info=True)
         return Response(
-            {"detail": _("OIDC token exchange failed: %(error)s") % {"error": exc}},
+            {"detail": _("OIDC token exchange failed")},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -305,8 +306,9 @@ def oidc_link_view(request):
     try:
         claims = exchange_code_for_claims(code, redirect_uri)
     except Exception as exc:
+        logger.error("OIDC token exchange failed", exc_info=True)
         return Response(
-            {"detail": _("OIDC token exchange failed: %(error)s") % {"error": exc}},
+            {"detail": _("OIDC token exchange failed")},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -736,8 +738,9 @@ def scrivener_import_view(request):
     try:
         project = import_scrivener_zip(uploaded, request.user)
     except ValueError as exc:
+        logger.error("Scrivener import failed.", exc_info=True)
         return Response(
-            {"detail": str(exc)},
+            {"detail": "Scrivener import failed."},
             status=status.HTTP_400_BAD_REQUEST,
         )
     return Response(
@@ -761,8 +764,9 @@ def ywriter_import_view(request):
     try:
         project = import_ywriter(uploaded, request.user)
     except ValueError as exc:
+        logger.error("YWriter import failed.", exc_info=True)
         return Response(
-            {"detail": str(exc)},
+            {"detail": "YWriter import failed."},
             status=status.HTTP_400_BAD_REQUEST,
         )
     return Response(
@@ -1031,13 +1035,15 @@ def compile_view(request, project_pk):
             back_matter_folder_id=back_matter_folder_id,
         )
     except ValueError as exc:
+        logger.error("Compile failed.", exc_info=True)
         return Response(
-            {"detail": str(exc)},
+            {"detail": "Compile failed."},
             status=status.HTTP_400_BAD_REQUEST,
         )
     except Exception as exc:
+        logger.error("Compile failed.", exc_info=True)
         return Response(
-            {"detail": _("Compile failed: %(error)s") % {"error": str(exc)}},
+            {"detail": _("Compile failed.")},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
