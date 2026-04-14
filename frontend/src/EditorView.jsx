@@ -11,9 +11,10 @@ import VersionHistoryPanel from "./VersionHistoryPanel";
 import PropertiesPanel from "./PropertiesPanel";
 import CompileDialog from "./CompileDialog";
 import ProjectSettings from "./ProjectSettings";
+import ProgressPage from "./ProgressPage";
 import VersionBadge from "./VersionBadge";
 import { findFolderById } from "./treeUtils";
-import { fetchProjectTree, fetchFile, saveDraftCache, createVersion, createFolder, deleteFolder, createText, deleteText, updateFolder, updateText, updateProject, reorderTree, emptyTrash, exportScrivener, exportYWriter, duplicateFolder, duplicateText, copyToProject, fetchProjects, fetchUserSettings } from "./api";
+import { fetchProjectTree, fetchFile, saveDraftCache, createVersion, createFolder, deleteFolder, createText, deleteText, updateFolder, updateText, updateProject, reorderTree, emptyTrash, exportScrivener, exportYWriter, duplicateFolder, duplicateText, copyToProject, fetchProjects, fetchUserSettings, fetchProgress as apiFetchProgress } from "./api";
 import "./EditorView.css";
 
 const DEBOUNCE_MS = 2000;
@@ -55,7 +56,7 @@ function isTextInsideTrash(tree, fileId) {
   return search(trashFolder.children);
 }
 
-export default function EditorView({ projectId, initialFileId, onLogout, onDashboard, username, onAccount, onSettings }) {
+export default function EditorView({ projectId, initialFileId, initialProgressOpen, onLogout, onDashboard, username, onAccount, onSettings }) {
   const t = useI18n();
   const { setProjectFont } = useFont();
   const isMobile = useIsMobile();
@@ -96,6 +97,7 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   const activeFileRef = useRef(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [propsCollapsed, setPropsCollapsed] = useState(false);
+  const [statusExpanded, setStatusExpanded] = useState(false);
 
   // ── URL sync ───────────────────────────────────────────────
   // Keep a ref so the popstate handler always sees the latest without re-registering.
@@ -145,6 +147,13 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   useEffect(() => {
     const onPopState = () => {
       if (!window.location.pathname.startsWith(`/projects/${projectId}`)) return;
+
+      const progressMatch = window.location.pathname.match(/^\/projects\/\d+\/progress\/?$/);
+      if (progressMatch) {
+        setProgressOpen(true);
+        return;
+      }
+      setProgressOpen(false);
 
       const fileMatch = window.location.pathname.match(/^\/projects\/\d+\/files\/(\d+)/);
       const folderMatch = window.location.pathname.match(/^\/projects\/\d+\/folders\/(\d+)/);
@@ -367,6 +376,19 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
     [flushDraftToCache],
   );
 
+  // ── Progress data for status bar ───────────────────────────
+  const [progressData, setProgressData] = useState(null);
+  const loadProgress = useCallback(() => {
+    apiFetchProgress(projectId).then(setProgressData).catch(() => {});
+  }, [projectId]);
+
+  // Defer initial load — don't fetch if progress page is already open
+  // (ProgressPage will call onDataLoaded instead)
+  const progressOpenRef = useRef(!!initialProgressOpen);
+  useEffect(() => {
+    if (!progressOpenRef.current) loadProgress();
+  }, [loadProgress]);
+
   const handleSave = useCallback(async () => {
     if (!activeFileId || draftRef.current == null) return;
     setSaving(true);
@@ -375,12 +397,13 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
       draftRef.current = null;
       setVersionKey((k) => k + 1);
       await loadFile(activeFileId);
+      loadProgress();
     } catch (err) {
       setFileError(t("editor.save_failed", { error: err.message }));
     } finally {
       setSaving(false);
     }
-  }, [activeFileId, loadFile]);
+  }, [activeFileId, loadFile, loadProgress]);
 
   const handleRevert = useCallback(() => {
     if (activeFileId) {
@@ -537,8 +560,21 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
 
   const [compileOpen, setCompileOpen] = useState(false);
   const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
+  const [progressOpen, setProgressOpen] = useState(!!initialProgressOpen);
   const handleCompile = useCallback(() => setCompileOpen(true), []);
   const handleProjectSettings = useCallback(() => setProjectSettingsOpen(true), []);
+  const handleProgressTracking = useCallback(() => {
+    setProgressOpen(true);
+    window.history.pushState(null, "", `/projects/${projectId}/progress`);
+  }, [projectId]);
+  const handleCloseProgress = useCallback(() => {
+    setProgressOpen(false);
+    loadProgress();
+    const base = `/projects/${projectId}`;
+    if (window.location.pathname !== base) {
+      window.history.pushState(null, "", base);
+    }
+  }, [projectId, loadProgress]);
 
   const handleCloseProjectSettings = useCallback(async () => {
     setProjectSettingsOpen(false);
@@ -671,6 +707,7 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
           await createVersion(fid, draftRef.current);
           draftRef.current = null;
           setVersionKey((k) => k + 1);
+          loadProgress();
         } catch {
           // silent — don't disrupt the user
         }
@@ -760,6 +797,7 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
         const wc = showFile ? wordCount : folderWordCount;
         const cc = showFile ? charCount : folderCharCount;
         const target = selectedItem?.target_word_count;
+        const hasProgress = progressData?.manuscript_target != null || progressData?.daily_target != null || progressData?.session_target != null;
         return (
           <div className="editor-status-bar" aria-live="polite">
             <span>{wc.toLocaleString()} {t("editor.words")}</span>
@@ -779,6 +817,23 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
                 </span>
               );
             })()}
+            {isMobile && hasProgress && (
+              <button type="button" className="editor-status-toggle" onClick={() => setStatusExpanded((v) => !v)} aria-label="Toggle progress">
+                {statusExpanded ? "▼" : "▲"}
+              </button>
+            )}
+            <div className={`editor-status-progress${isMobile && !statusExpanded ? " editor-status-progress--collapsed" : ""}`}>
+              {progressData?.manuscript_target != null && (() => {
+                const msPct = Math.min(Math.round((progressData.current_word_count / progressData.manuscript_target) * 100), 100);
+                return <span>{t("status.manuscript")}: {progressData.current_word_count.toLocaleString()}/{progressData.manuscript_target.toLocaleString()} ({msPct}%)</span>;
+              })()}
+              {progressData?.daily_target != null && (
+                <span>{t("dashboard.daily_progress")}: {progressData.daily_word_count.toLocaleString()}/{progressData.daily_target.toLocaleString()} ({Math.min(Math.round((progressData.daily_word_count / progressData.daily_target) * 100), 100)}%)</span>
+              )}
+              {progressData?.session_target != null && (
+                <span>{t("status.session")}: {progressData.session_word_count.toLocaleString()}/{progressData.session_target.toLocaleString()} ({Math.min(Math.round((progressData.session_word_count / progressData.session_target) * 100), 100)}%)</span>
+              )}
+            </div>
           </div>
         );
       })()}
@@ -796,16 +851,22 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   if (isMobile) {
     return (
       <div className="editor-mobile-wrapper">
-        <TopBar projectTitle={tree?.title} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} onExportScrivener={handleExportScrivener} onExportYWriter={handleExportYWriter} onCompile={handleCompile} onProjectSettings={handleProjectSettings} />
+        <TopBar projectTitle={tree?.title} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} onExportScrivener={handleExportScrivener} onExportYWriter={handleExportYWriter} onCompile={handleCompile} onProjectSettings={handleProjectSettings} onProgressTracking={handleProgressTracking} />
         <div className="editor-mobile-tabs">
           <button type="button" className={`editor-mobile-tab${mobilePanel === "tree" ? " editor-mobile-tab--active" : ""}`} onClick={() => setMobilePanel("tree")}>📁 Tree</button>
           <button type="button" className={`editor-mobile-tab${mobilePanel === "editor" ? " editor-mobile-tab--active" : ""}`} onClick={() => setMobilePanel("editor")}>✏️ Editor</button>
           <button type="button" className={`editor-mobile-tab${mobilePanel === "properties" ? " editor-mobile-tab--active" : ""}`} onClick={() => setMobilePanel("properties")}>ℹ️ Info</button>
         </div>
         <div className="editor-mobile-body">
-          {mobilePanel === "tree" && <div className="editor-mobile-tree">{sidebarContent}</div>}
-          {mobilePanel === "editor" && editorContent}
-          {mobilePanel === "properties" && propertiesContent}
+          {progressOpen ? (
+            <ProgressPage projectId={projectId} onClose={handleCloseProgress} onDataLoaded={setProgressData} initialData={progressData} />
+          ) : (
+            <>
+              {mobilePanel === "tree" && <div className="editor-mobile-tree">{sidebarContent}</div>}
+              {mobilePanel === "editor" && editorContent}
+              {mobilePanel === "properties" && propertiesContent}
+            </>
+          )}
         </div>
         {compileOpen && <CompileDialog projectId={projectId} tree={tree} onClose={() => setCompileOpen(false)} />}
         {projectSettingsOpen && <ProjectSettings projectId={projectId} settings={tree?.settings} onClose={handleCloseProjectSettings} onRefresh={refreshTree} />}
@@ -816,7 +877,10 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
   // ── Desktop layout ─────────────────────────────────────────
   return (
     <div className="editor-desktop-wrapper">
-      <TopBar projectTitle={tree?.title} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} onExportScrivener={handleExportScrivener} onExportYWriter={handleExportYWriter} onCompile={handleCompile} onProjectSettings={handleProjectSettings} />
+      <TopBar projectTitle={tree?.title} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} onExportScrivener={handleExportScrivener} onExportYWriter={handleExportYWriter} onCompile={handleCompile} onProjectSettings={handleProjectSettings} onProgressTracking={handleProgressTracking} />
+      {progressOpen ? (
+        <ProgressPage projectId={projectId} onClose={handleCloseProgress} onDataLoaded={setProgressData} initialData={progressData} />
+      ) : (
       <div className="editor-desktop-body">
         {!sidebarCollapsed && (
           <div className="editor-sidebar">{sidebarContent}</div>
@@ -839,6 +903,7 @@ export default function EditorView({ projectId, initialFileId, onLogout, onDashb
           </div>
         )}
       </div>
+      )}
       {compileOpen && <CompileDialog projectId={projectId} tree={tree} onClose={() => setCompileOpen(false)} />}
       {projectSettingsOpen && <ProjectSettings projectId={projectId} settings={tree?.settings} onClose={handleCloseProjectSettings} onRefresh={refreshTree} />}
     </div>

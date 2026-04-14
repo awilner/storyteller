@@ -1,0 +1,225 @@
+.progress-page {
+  padding: 24px;
+  max-width: 960px;
+  margin: 0 auto;
+  font-family: system-ui;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.progress-page h2 {
+  margin: 0 0 20px;
+}
+
+.progress-back-btn {
+  background: none;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+.progress-back-btn:hover {
+  background: #f5f5f5;
+}
+
+.progress-targets-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 6px;
+}
+
+.progress-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.progress-field label {
+  min-width: 180px;
+  font-size: 13px;
+  color: #555;
+}
+
+.progress-field input {
+  width: 120px;
+  padding: 5px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.progress-save-btn {
+  align-self: flex-start;
+  padding: 6px 16px;
+  background: #4a90d9;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.progress-save-btn:hover {
+  background: #3a7bc8;
+}
+
+.progress-section {
+  margin-bottom: 20px;
+}
+
+.progress-section h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #333;
+}
+
+.progress-bar-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.progress-bar-track {
+  flex: 1;
+  height: 14px;
+  background: #e0e0e0;
+  border-radius: 7px;
+  overflow: hidden;
+  display: flex;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 7px;
+  transition: width 0.3s;
+  background: #4a90d9;
+}
+
+.progress-bar-fill--negative {
+  height: 100%;
+  border-radius: 7px;
+  transition: width 0.3s;
+  background: #e74c3c;
+  margin-left: auto;
+}
+
+.progress-bar-label {
+  font-size: 13px;
+  color: #555;
+  white-space: nowrap;
+}
+
+.progress-reset-btn {
+  padding: 4px 12px;
+  background: none;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.progress-reset-btn:hover {
+  background: #f5f5f5;
+}
+
+.progress-graph {
+  margin-top: 24px;
+  padding: 16px;
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 6px;
+}
+
+.progress-graph h3 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: #333;
+}
+
+.progress-graph svg {
+  width: 100%;
+  height: 200px;
+}
+
+.progress-insufficient {
+  color: #999;
+  font-size: 13px;
+  font-style: italic;
+  padding: 20px 0;
+  text-align: center;
+}
+
+.progress-error {
+  color: #c0392b;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.progress-loading {
+  color: #999;
+  font-size: 13px;
+  padding: 20px 0;
+  text-align: center;
+}
+
+.progress-tooltip {
+  position: absolute;
+  transform: translate(-50%, -110%);
+  background: #333;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.chart-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  justify-content: center;
+}
+
+.chart-controls button {
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 2px 10px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.chart-controls button:hover:not(:disabled) {
+  background: #e0e0e0;
+}
+
+.chart-controls button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.chart-controls-info {
+  font-size: 11px;
+  color: #999;
+  margin-left: 4px;
+}
+
+.progress-projection {
+  font-size: 13px;
+  color: #f39c12;
+  margin: 6px 0 0;
+  font-weight: 600;
+}

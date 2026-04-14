@@ -268,6 +268,36 @@ def _get_ui_strings():
         "settings.colour_source_pov": _("POV Character"),
         "settings.colour_source_label": _("Label"),
         "settings.colour_source_status": _("Status"),
+
+        # Progress tracking
+        "progress.title": _("Progress Tracking"),
+        "progress.manuscript_target": _("Manuscript Target (words)"),
+        "progress.daily_target": _("Daily Target (words)"),
+        "progress.session_target": _("Session Target (words)"),
+        "progress.reset_session": _("Reset Session"),
+        "progress.save_targets": _("Save Targets"),
+        "progress.words_written_today": _("Words written today"),
+        "progress.session_words": _("Session words"),
+        "progress.insufficient_data": _("Not enough data for the graph yet. Keep writing!"),
+        "progress.no_targets": _("No targets configured. Set targets above to track your progress."),
+        "progress.back_to_editor": _("Back to Editor"),
+        "topbar.progress_tracking": _("Progress Tracking"),
+        "dashboard.manuscript_progress": _("Manuscript"),
+        "dashboard.daily_progress": _("Today"),
+
+        # Progress page charts
+        "progress.word_count_over_time": _("Word Count Over Time"),
+        "progress.daily_words": _("Daily Words"),
+        "progress.session_history": _("Session History"),
+        "progress.no_sessions": _("No sessions recorded yet."),
+        "progress.words_label": _("words"),
+        "progress.date_label": _("Date"),
+        "progress.target_line": _("Target"),
+        "progress.projected_completion": _("Projected completion"),
+
+        # Status bar
+        "status.manuscript": _("Manuscript"),
+        "status.session": _("Session"),
     }
 
 
