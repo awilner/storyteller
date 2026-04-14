@@ -545,4 +545,4 @@ class YWriterImportViewTests(TestCase):
             format="multipart",
         )
         self.assertEqual(resp.status_code, 400)
-        self.assertIn(".yw7", resp.json()["detail"])
+        self.assertIn("YWriter import failed", resp.json()["detail"])

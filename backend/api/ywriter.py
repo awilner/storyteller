@@ -8,7 +8,7 @@ Characters as CHARACTER ProjectFiles, and Locations as LOCATION ProjectFiles.
 import os
 import re
 import tempfile
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 
 from django.utils.translation import gettext as _
 
@@ -99,13 +99,18 @@ def import_ywriter(uploaded_file, user):
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         # Save the uploaded file
-        tmp_path = os.path.join(tmpdir, uploaded_file.name or "upload.yw7")
-        with open(tmp_path, "wb") as f:
+        safe_name = os.path.basename(uploaded_file.name or "") or "upload.yw7"
+        tmp_path = os.path.join(tmpdir, safe_name)
+        tmpdir_real = os.path.realpath(tmpdir)
+        tmp_path_real = os.path.realpath(tmp_path)
+        if os.path.commonpath([tmpdir_real, tmp_path_real]) != tmpdir_real:
+            raise ValueError("Invalid upload filename.")
+        with open(tmp_path_real, "wb") as f:
             for chunk in uploaded_file.chunks():
                 f.write(chunk)
 
         try:
-            tree = ET.parse(tmp_path)
+            tree = ET.parse(tmp_path_real)
         except ET.ParseError:
             raise ValueError("Invalid .yw7 file: could not parse XML.")
         root_el = tree.getroot()
