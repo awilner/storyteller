@@ -99,7 +99,10 @@ def import_ywriter(uploaded_file, user):
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         # Save the uploaded file
-        safe_name = os.path.basename(uploaded_file.name or "") or "upload.yw7"
+        original_name = os.path.basename(uploaded_file.name or "")
+        safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", original_name).lstrip("._-")
+        if not safe_name:
+            safe_name = "upload.yw7"
         tmp_path = os.path.join(tmpdir, safe_name)
         tmpdir_real = os.path.realpath(tmpdir)
         tmp_path_real = os.path.realpath(tmp_path)
