@@ -98,17 +98,9 @@ def import_ywriter(uploaded_file, user):
         The created Project instance.
     """
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Save the uploaded file
-        original_name = os.path.basename(uploaded_file.name or "")
-        safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", original_name).lstrip("._-")
-        if not safe_name:
-            safe_name = "upload.yw7"
-        tmp_path = os.path.join(tmpdir, safe_name)
-        tmpdir_real = os.path.realpath(tmpdir)
-        tmp_path_real = os.path.realpath(tmp_path)
-        if os.path.commonpath([tmpdir_real, tmp_path_real]) != tmpdir_real:
-            raise ValueError("Invalid upload filename.")
-        with open(tmp_path_real, "wb") as f:
+        # Save the uploaded file using a server-generated temporary filename.
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".yw7", dir=tmpdir, delete=False) as f:
+            tmp_path_real = os.path.realpath(f.name)
             for chunk in uploaded_file.chunks():
                 f.write(chunk)
 
