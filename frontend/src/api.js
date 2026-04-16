@@ -353,3 +353,6 @@ export const resetSession = (projectId) =>
 
 // App version
 export const fetchAppVersion = () => request(`${API_BASE}/version/`);
+
+// Timezones
+export const fetchTimezones = () => request(`${API_BASE}/timezones/`);

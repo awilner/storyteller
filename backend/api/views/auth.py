@@ -80,6 +80,25 @@ def user_settings_view(request):
             {"detail": _("Expected a JSON object.")},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    # Validate timezone if provided
+    tz_val = request.data.get("timezone")
+    if tz_val is not None and tz_val != "":
+        try:
+            from zoneinfo import ZoneInfo
+            ZoneInfo(tz_val)
+        except (KeyError, Exception):
+            return Response({"detail": _("Invalid timezone.")}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Validate day_cutover_hour if provided
+    cutover = request.data.get("day_cutover_hour")
+    if cutover is not None:
+        try:
+            c = int(cutover)
+            if not (-12 <= c <= 12):
+                raise ValueError
+        except (TypeError, ValueError):
+            return Response({"detail": _("Day cutover must be between -12 and 12.")}, status=status.HTTP_400_BAD_REQUEST)
+
     settings_obj.preferences.update(request.data)
     settings_obj.save()
     return Response(settings_obj.preferences)

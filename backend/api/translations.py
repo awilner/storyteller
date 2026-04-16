@@ -298,6 +298,13 @@ def _get_ui_strings():
         # Status bar
         "status.manuscript": _("Manuscript"),
         "status.session": _("Session"),
+
+        # Timezone settings
+        "settings.timezone": _("Timezone"),
+        "settings.timezone_hint": _("Your timezone for daily progress tracking. Defaults to the server timezone."),
+        "settings.day_cutover": _("Day starts at"),
+        "settings.day_cutover_hint": _("When your daily word count resets. Useful if you write past midnight."),
+        "progress.manuscript_tz_note": _("Manuscript progress uses the project owner's timezone"),
     }
 
 

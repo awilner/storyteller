@@ -29,6 +29,7 @@ from .views import (
     oidc_login_view,
     oidc_unlink_view,
     progress_view,
+    timezones_view,
     project_detail_view,
     project_list_view,
     project_tree_view,
@@ -48,6 +49,7 @@ urlpatterns = [
     # Public config
     path("config/", config_view, name="config"),
     path("version/", version_view, name="version"),
+    path("timezones/", timezones_view, name="timezones"),
     # Internationalization
     path("i18n/strings/", translations_view, name="translations"),
     # Auth

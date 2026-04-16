@@ -201,9 +201,27 @@ class DailyWordCountSerializer(serializers.ModelSerializer):
 
 
 class SessionWordCountSerializer(serializers.ModelSerializer):
+    started_at = serializers.SerializerMethodField()
+    ended_at = serializers.SerializerMethodField()
+
     class Meta:
         model = SessionWordCount
         fields = ["id", "started_at", "ended_at", "word_count"]
+
+    @staticmethod
+    def _to_utc_iso(dt):
+        """Format a datetime as UTC ISO 8601 with Z suffix."""
+        if dt is None:
+            return None
+        # Strip any existing tzinfo to avoid double-suffix (+00:00Z)
+        naive = dt.replace(tzinfo=None) if dt.tzinfo else dt
+        return naive.isoformat() + "Z"
+
+    def get_started_at(self, obj):
+        return self._to_utc_iso(obj.started_at)
+
+    def get_ended_at(self, obj):
+        return self._to_utc_iso(obj.ended_at)
 
 
 class CompileRequestSerializer(serializers.Serializer):

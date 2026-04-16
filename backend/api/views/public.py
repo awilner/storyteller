@@ -63,6 +63,15 @@ def _check_latest_release():
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
+def timezones_view(request):
+    """Return list of common IANA timezone names."""
+    from zoneinfo import available_timezones
+    zones = sorted(available_timezones())
+    return Response(zones)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
 def version_view(request):
     """Return current app version and latest release info."""
     current = _read_current_version()
