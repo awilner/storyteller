@@ -1,5 +1,8 @@
 import datetime
 import logging
+import time
+
+from zoneinfo import ZoneInfo
 
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -7,11 +10,49 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from ..models import DailyWordCount, ManuscriptWordCount, Project, SessionWordCount
+from ..models import DailyWordCount, ManuscriptWordCount, Project, SessionWordCount, UserSettings
 from ..progress import compute_project_word_count
 from ..serializers import DailyWordCountSerializer, ManuscriptWordCountSerializer, SessionWordCountSerializer
 
 logger = logging.getLogger(__name__)
+
+
+def _get_user_tz(user):
+    """Get user's timezone as a ZoneInfo. Falls back to server local tz."""
+    try:
+        prefs = UserSettings.objects.get(user=user).preferences
+        tz_name = prefs.get("timezone", "")
+        if tz_name:
+            return ZoneInfo(tz_name)
+    except (UserSettings.DoesNotExist, KeyError):
+        pass
+    # Server default
+    local_tz = time.tzname[0]
+    try:
+        return ZoneInfo(local_tz)
+    except Exception:
+        return ZoneInfo("UTC")
+
+
+def _get_user_today(user):
+    """Get the user's 'today' date, accounting for timezone and day cutover offset.
+
+    The cutover offset shifts when the day boundary falls:
+      0 = Midnight (default)
+      +4 = 4 AM next day (day resets at 4am — for night owls)
+      -6 = 6 PM (day resets at 6pm)
+    """
+    tz = _get_user_tz(user)
+    now = datetime.datetime.now(tz)
+    cutover_offset = 0
+    try:
+        prefs = UserSettings.objects.get(user=user).preferences
+        cutover_offset = int(prefs.get("day_cutover_hour", 0))
+    except (UserSettings.DoesNotExist, KeyError, TypeError, ValueError):
+        pass
+    # Shift the clock back by the offset to determine the logical date
+    adjusted = now - datetime.timedelta(hours=cutover_offset)
+    return adjusted.date()
 
 
 @api_view(["GET", "PATCH", "POST"])
@@ -24,19 +65,25 @@ def progress_view(request, project_pk):
         settings = project.settings or {}
         user = request.user
 
+        # Compute "today" for the manuscript using the project owner's timezone
+        owner_tz = _get_user_tz(project.owner)
+        owner_today = datetime.datetime.now(owner_tz).date()
+
         # Upsert today's manuscript snapshot
-        today = datetime.date.today()
         ms_snapshot, created = ManuscriptWordCount.objects.get_or_create(
-            project=project, date=today,
+            project=project, date=owner_today,
             defaults={"word_count": current_wc, "start_word_count": current_wc},
         )
         if not created:
             ms_snapshot.word_count = current_wc
             ms_snapshot.save(update_fields=["word_count", "updated_at"])
 
+        # Compute "today" for the user (with day cutover support)
+        user_today = _get_user_today(user)
+
         # Upsert today's daily word count for this user
         daily_obj, daily_created = DailyWordCount.objects.get_or_create(
-            project=project, date=today, user=user,
+            project=project, date=user_today, user=user,
             defaults={"word_count": 0},
         )
         daily_wc = current_wc - ms_snapshot.start_word_count
@@ -50,7 +97,7 @@ def progress_view(request, project_pk):
         # Initialize session start if missing
         if "session_start_word_count" not in settings:
             settings["session_start_word_count"] = current_wc
-            settings["session_started_at"] = datetime.datetime.now().isoformat()
+            settings["session_started_at"] = datetime.datetime.utcnow().isoformat() + "Z"
             project.settings = settings
             project.save(update_fields=["settings"])
 
@@ -65,6 +112,17 @@ def progress_view(request, project_pk):
         daily_counts = DailyWordCount.objects.filter(project=project, user=user).order_by("date")
         sessions = SessionWordCount.objects.filter(project=project, user=user).order_by("-ended_at")[:50]
 
+        # Resolve timezone strings for the response
+        owner_tz_name = str(owner_tz)
+        user_tz = _get_user_tz(user)
+        user_tz_name = str(user_tz)
+        day_cutover_hour = 0
+        try:
+            prefs = UserSettings.objects.get(user=user).preferences
+            day_cutover_hour = int(prefs.get("day_cutover_hour", 0))
+        except (UserSettings.DoesNotExist, KeyError, TypeError, ValueError):
+            pass
+
         return Response({
             "current_word_count": current_wc,
             "manuscript_target": settings.get("manuscript_target"),
@@ -75,6 +133,9 @@ def progress_view(request, project_pk):
             "snapshots": ManuscriptWordCountSerializer(snapshots, many=True).data,
             "daily_counts": DailyWordCountSerializer(daily_counts, many=True).data,
             "sessions": SessionWordCountSerializer(sessions, many=True).data,
+            "owner_timezone": owner_tz_name,
+            "user_timezone": user_tz_name,
+            "day_cutover_hour": day_cutover_hour,
         })
 
     elif request.method == "PATCH":
@@ -122,7 +183,7 @@ def progress_view(request, project_pk):
             logger.info("reset_session: project=%s current_wc=%s old_start=%s word_count=%s session_started=%r",
                         project_pk, current_wc, old_start, word_count, session_started)
             if word_count != 0:
-                started = datetime.datetime.now()
+                started = datetime.datetime.utcnow()
                 if session_started:
                     try:
                         parsed = datetime.datetime.fromisoformat(str(session_started))
@@ -134,10 +195,11 @@ def progress_view(request, project_pk):
                 logger.info("reset_session: creating SessionWordCount started_at=%s", started)
                 SessionWordCount.objects.create(
                     project=project, user=request.user,
-                    started_at=started, word_count=word_count,
+                    started_at=started, ended_at=datetime.datetime.utcnow(),
+                    word_count=word_count,
                 )
             settings["session_start_word_count"] = current_wc
-            settings["session_started_at"] = datetime.datetime.now().isoformat()
+            settings["session_started_at"] = datetime.datetime.utcnow().isoformat() + "Z"
             project.settings = settings
             project.save(update_fields=["settings"])
             return Response({"session_start_word_count": current_wc, "session_word_count": 0})

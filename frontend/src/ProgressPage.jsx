@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useI18n } from "./I18nContext";
-import { fetchProgress, updateProgress, resetSession } from "./api";
+import { fetchProgress, updateProgress, resetSession, fetchUserSettings, updateUserSettings } from "./api";
 import "./ProgressPage.css";
 
 const DEFAULT_VISIBLE = 10;
@@ -101,7 +101,7 @@ function ProgressGraph({ snapshots, manuscriptTarget, t }) {
   const yScale = (v) => padding.top + innerH - (v / maxCount) * innerH;
 
   const points = slice.map((s, i) => `${xScale(dates[i])},${yScale(s.word_count)}`).join(" ");
-  const formatDate = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
+  const formatDate = (d) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
   // Trend line from last 10 points of the FULL dataset
   const trendN = Math.min(10, snapshots.length);
@@ -177,7 +177,7 @@ function ProgressGraph({ snapshots, manuscriptTarget, t }) {
       </div>
       {projectedDate && (
         <p className="progress-projection">
-          {t("progress.projected_completion")}: {projectedDate.toLocaleDateString()}
+          {t("progress.projected_completion")}: {projectedDate.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
         </p>
       )}
       {total > DEFAULT_VISIBLE && (
@@ -223,7 +223,7 @@ function DailyBarChart({ dailyCounts, dailyTarget, t }) {
   const zeroY = hasNeg ? padding.top + (maxVal / range) * innerH : padding.top + innerH;
 
   const barWidth = Math.max(4, (innerW / deltas.length) - 2);
-  const formatDate = (d) => { const dt = new Date(d); return `${dt.getMonth() + 1}/${dt.getDate()}`; };
+  const formatDate = (d) => { const dt = new Date(d); return dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); };
 
   return (
     <div>
@@ -323,7 +323,11 @@ function SessionBarChart({ sessions, sessionTarget, t }) {
   const barWidth = Math.max(4, (innerW / slice.length) - 2);
   const formatDt = (iso) => {
     const d = new Date(iso);
-    return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  };
+  const formatDtShort = (iso) => {
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
 
   return (
@@ -362,9 +366,9 @@ function SessionBarChart({ sessions, sessionTarget, t }) {
           )}
 
           {/* X axis date labels */}
-          {pickLabelIndices(slice.length).map((i) => {
+          {pickLabelIndices(slice.length, 5).map((i) => {
             const x = padding.left + (i / slice.length) * innerW + 1 + barWidth / 2;
-            return <text key={i} x={x} y={height - 5} textAnchor="middle" fontSize="10" fill="#999">{formatDt(slice[i].started_at)}</text>;
+            return <text key={i} x={x} y={height - 5} textAnchor="middle" fontSize="10" fill="#999">{formatDtShort(slice[i].started_at)}</text>;
           })}
         </svg>
         {hoveredBar !== null && hoveredBar < slice.length && (() => {
@@ -403,6 +407,9 @@ export default function ProgressPage({ projectId, onClose, onDataLoaded, initial
   const [sessionTarget, setSessionTarget] = useState(() =>
     initialData?.session_target != null ? String(initialData.session_target) : ""
   );
+  const [dayCutover, setDayCutover] = useState(() =>
+    initialData?.day_cutover_hour != null ? initialData.day_cutover_hour : 0
+  );
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -415,6 +422,7 @@ export default function ProgressPage({ projectId, onClose, onDataLoaded, initial
       setManuscriptTarget(d.manuscript_target != null ? String(d.manuscript_target) : "");
       setDailyTarget(d.daily_target != null ? String(d.daily_target) : "");
       setSessionTarget(d.session_target != null ? String(d.session_target) : "");
+      if (d.day_cutover_hour != null) setDayCutover(d.day_cutover_hour);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -434,6 +442,8 @@ export default function ProgressPage({ projectId, onClose, onDataLoaded, initial
         session_target: sessionTarget ? Number(sessionTarget) : null,
       };
       await updateProgress(projectId, payload);
+      // Save cutover to user settings
+      await updateUserSettings({ day_cutover_hour: dayCutover });
       await load();
     } catch (err) {
       setError(err.message);
@@ -473,6 +483,37 @@ export default function ProgressPage({ projectId, onClose, onDataLoaded, initial
           <input type="number" min="1" value={dailyTarget} onChange={(e) => setDailyTarget(e.target.value)} />
         </div>
         <div className="progress-field">
+          <label>{t("settings.day_cutover")}</label>
+          <select value={dayCutover} onChange={(e) => setDayCutover(Number(e.target.value))}>
+            <option value={-12}>Noon</option>
+            <option value={-11}>1 PM</option>
+            <option value={-10}>2 PM</option>
+            <option value={-9}>3 PM</option>
+            <option value={-8}>4 PM</option>
+            <option value={-7}>5 PM</option>
+            <option value={-6}>6 PM</option>
+            <option value={-5}>7 PM</option>
+            <option value={-4}>8 PM</option>
+            <option value={-3}>9 PM</option>
+            <option value={-2}>10 PM</option>
+            <option value={-1}>11 PM</option>
+            <option value={0}>Midnight</option>
+            <option value={1}>1 AM Next Day</option>
+            <option value={2}>2 AM Next Day</option>
+            <option value={3}>3 AM Next Day</option>
+            <option value={4}>4 AM Next Day</option>
+            <option value={5}>5 AM Next Day</option>
+            <option value={6}>6 AM Next Day</option>
+            <option value={7}>7 AM Next Day</option>
+            <option value={8}>8 AM Next Day</option>
+            <option value={9}>9 AM Next Day</option>
+            <option value={10}>10 AM Next Day</option>
+            <option value={11}>11 AM Next Day</option>
+            <option value={12}>Noon Next Day</option>
+          </select>
+          <span className="muted-text" style={{ fontSize: "0.85em" }}>{t("settings.day_cutover_hint")}</span>
+        </div>
+        <div className="progress-field">
           <label>{t("progress.session_target")}</label>
           <input type="number" min="1" value={sessionTarget} onChange={(e) => setSessionTarget(e.target.value)} />
         </div>
@@ -488,6 +529,11 @@ export default function ProgressPage({ projectId, onClose, onDataLoaded, initial
               <h3>{t("progress.manuscript_target")}</h3>
               <ProgressBar current={data.current_word_count} target={data.manuscript_target}
                 label={`${data.current_word_count.toLocaleString()} / ${data.manuscript_target.toLocaleString()}`} />
+              {data.owner_timezone && data.user_timezone && data.owner_timezone !== data.user_timezone && (
+                <p className="muted-text" style={{ marginTop: 4, fontSize: "0.85em" }}>
+                  {t("progress.manuscript_tz_note")} ({data.owner_timezone})
+                </p>
+              )}
             </div>
           )}
 

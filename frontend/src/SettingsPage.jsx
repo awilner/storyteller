@@ -1,18 +1,23 @@
 import { useState, useEffect } from "react";
 import { useI18n } from "./I18nContext";
 import { useFont, FONT_OPTIONS } from "./FontContext";
-import { fetchUserSettings, updateUserSettings } from "./api";
+import { fetchUserSettings, updateUserSettings, fetchTimezones } from "./api";
 import TopBar from "./TopBar";
 
 export default function SettingsPage({ user, onBack, onLogout, onAccount }) {
   const t = useI18n();
   const { userFont, setUserFont } = useFont();
   const [autoSave, setAutoSave] = useState(60);
+  const [timezone, setTimezone] = useState("");
+  const [timezones, setTimezones] = useState([]);
+  const [tzFilter, setTzFilter] = useState("");
 
   useEffect(() => {
     fetchUserSettings().then((prefs) => {
       if (prefs.auto_save_interval != null) setAutoSave(prefs.auto_save_interval);
+      if (prefs.timezone != null) setTimezone(prefs.timezone);
     }).catch(() => {});
+    fetchTimezones().then(setTimezones).catch(() => {});
   }, []);
 
   const handleAutoSaveChange = (val) => {
@@ -20,6 +25,16 @@ export default function SettingsPage({ user, onBack, onLogout, onAccount }) {
     setAutoSave(num);
     updateUserSettings({ auto_save_interval: num }).catch(() => {});
   };
+
+  const handleTimezoneChange = (val) => {
+    setTimezone(val);
+    setTzFilter("");
+    updateUserSettings({ timezone: val }).catch(() => {});
+  };
+
+  const filteredTimezones = tzFilter
+    ? timezones.filter((tz) => tz.toLowerCase().includes(tzFilter.toLowerCase()))
+    : timezones;
 
   return (
     <div>
@@ -47,6 +62,31 @@ export default function SettingsPage({ user, onBack, onLogout, onAccount }) {
             value={autoSave} onChange={(e) => handleAutoSaveChange(e.target.value)} />
           <p className="muted-text" style={{ marginTop: 4 }}>{t("settings.auto_save_hint")}</p>
         </div>
+
+        <div className="mb-12">
+          <label className="form-label">{t("settings.timezone")}</label>
+          <input
+            type="text"
+            className="input"
+            placeholder={t("settings.timezone")}
+            value={tzFilter}
+            onChange={(e) => setTzFilter(e.target.value)}
+            style={{ marginBottom: 4 }}
+          />
+          <select
+            className="input"
+            value={timezone}
+            onChange={(e) => handleTimezoneChange(e.target.value)}
+            size={tzFilter ? Math.min(8, filteredTimezones.length + 1) : 1}
+          >
+            <option value="">Server default</option>
+            {filteredTimezones.map((tz) => (
+              <option key={tz} value={tz}>{tz}</option>
+            ))}
+          </select>
+          <p className="muted-text" style={{ marginTop: 4 }}>{t("settings.timezone_hint")}</p>
+        </div>
+
       </div>
     </div>
   );

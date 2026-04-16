@@ -294,7 +294,7 @@ class SessionWordCount(models.Model):
     """Records a user's completed writing session on a project with word count."""
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="session_word_count")
     started_at = models.DateTimeField()
-    ended_at = models.DateTimeField(auto_now_add=True)
+    ended_at = models.DateTimeField()
     word_count = models.IntegerField(default=0)
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,

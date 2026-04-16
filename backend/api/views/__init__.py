@@ -1,5 +1,5 @@
 # Re-export all views so urls.py can import from api.views
-from .public import config_view, version_view  # noqa: F401
+from .public import config_view, timezones_view, version_view  # noqa: F401
 from .auth import (  # noqa: F401
     change_password_view,
     login_view,
