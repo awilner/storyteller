@@ -18,7 +18,7 @@ class OIDCLoginViewTests(TestCase):
     def setUp(self):
         self.client = APIClient()
 
-    @patch("api.views.get_authorization_url", return_value="https://idp.example.com/auth?state=xyz")
+    @patch("api.views.oidc.get_authorization_url", return_value="https://idp.example.com/auth?state=xyz")
     def test_oidc_login_returns_url(self, _mock):
         resp = self.client.get("/api/auth/oidc/login/?redirect_uri=http://localhost/cb")
         self.assertEqual(resp.status_code, 200)
@@ -33,7 +33,7 @@ class OIDCCallbackViewTests(TestCase):
     def setUp(self):
         self.client = APIClient()
 
-    @patch("api.views.exchange_code_for_claims", return_value=MOCK_CLAIMS)
+    @patch("api.views.oidc.exchange_code_for_claims", return_value=MOCK_CLAIMS)
     def test_callback_creates_user_and_identity(self, _mock):
         # Set up session state
         session = self.client.session
@@ -52,7 +52,7 @@ class OIDCCallbackViewTests(TestCase):
         # User and identity should exist
         self.assertTrue(OIDCIdentity.objects.filter(sub="oidc-subject-123").exists())
 
-    @patch("api.views.exchange_code_for_claims", return_value=MOCK_CLAIMS)
+    @patch("api.views.oidc.exchange_code_for_claims", return_value=MOCK_CLAIMS)
     def test_callback_logs_in_existing_linked_user(self, _mock):
         user = User.objects.create_user(username="alice", password="pw")
         OIDCIdentity.objects.create(
@@ -99,7 +99,7 @@ class OIDCLinkViewTests(TestCase):
         self.user = User.objects.create_user(username="alice", password="pw")
         self.client.force_login(self.user)
 
-    @patch("api.views.exchange_code_for_claims", return_value=MOCK_CLAIMS)
+    @patch("api.views.oidc.exchange_code_for_claims", return_value=MOCK_CLAIMS)
     def test_link_identity(self, _mock):
         session = self.client.session
         session["oidc_state"] = "test-state"
@@ -115,7 +115,7 @@ class OIDCLinkViewTests(TestCase):
             OIDCIdentity.objects.filter(user=self.user, sub="oidc-subject-123").exists()
         )
 
-    @patch("api.views.exchange_code_for_claims", return_value=MOCK_CLAIMS)
+    @patch("api.views.oidc.exchange_code_for_claims", return_value=MOCK_CLAIMS)
     def test_link_already_linked_identity(self, _mock):
         other = User.objects.create_user(username="bob", password="pw")
         OIDCIdentity.objects.create(
