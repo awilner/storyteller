@@ -9,8 +9,8 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from api.models import Folder, Project, ProjectFile
-from api.scrivener import import_scrivener_zip
-from api.ywriter import import_ywriter
+from api.import_export import import_scrivener_zip
+from api.import_export import import_ywriter
 
 
 def _make_zip(file_dict):
