@@ -89,9 +89,12 @@ SQLite is used by default. Set `DB_ENGINE=mariadb` to use MariaDB.
 backend/
 ├── config/              # Django settings, root URLs, WSGI
 ├── api/
+│   ├── views/           # All API endpoints
+│   ├── compiler/        # Manuscript compile engine
+│   ├── import_export/   # Importers and exporters
+│   │                     # (Scrivener and yWriter)
 │   ├── models.py        # Project, Folder, ProjectFile, FileVersion,
 │   │                    # Label, Status, CompileLayout, OIDCIdentity, UserSettings
-│   ├── views/         # All API endpoints
 │   ├── serializers.py   # DRF serializers
 │   ├── urls.py          # URL routing
 │   ├── permissions.py   # IsProjectOwner permission
@@ -99,9 +102,6 @@ backend/
 │   ├── oidc.py          # OIDC token exchange helpers
 │   ├── scrivener.py     # Scrivener (.scriv.zip) importer
 │   ├── ywriter.py       # yWriter7 (.yw7) importer
-│   ├── exporters.py     # Scrivener and yWriter exporters
-│   ├── compiler/        # Manuscript compile engine
-
 │   ├── migrations/
 │   └── tests/
 ├── locale/              # Translation message files

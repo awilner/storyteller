@@ -10,8 +10,9 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from api.models import Folder, Project, ProjectFile
-from api.scrivener import import_scrivener_zip
-from api.ywriter import _bbcode_to_markdown, import_ywriter
+from api.import_export import import_scrivener_zip
+from api.import_export import import_ywriter
+from api.import_export.ywriter_common import bbcode_to_markdown as _bbcode_to_markdown
 
 
 # ── Helpers ───────────────────────────────────────────────────

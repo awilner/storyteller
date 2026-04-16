@@ -8,12 +8,12 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from ..exporters import export_scrivener, export_ywriter
+from ..import_export import export_scrivener, export_ywriter
 from ..models import Project
 from ..permissions import IsProjectOwner
-from ..scrivener import import_scrivener_zip
+from ..import_export import import_scrivener_zip
 from ..serializers import ProjectListSerializer
-from ..ywriter import import_ywriter
+from ..import_export import import_ywriter
 
 logger = logging.getLogger(__name__)
 
