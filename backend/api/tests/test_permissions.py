@@ -2,7 +2,7 @@ from django.contrib.auth.models import AnonymousUser, User
 from django.test import RequestFactory, TestCase
 
 from api.models import Folder, Project, ProjectFile
-from api.permissions import IsProjectOwner
+from api.permissions import ProjectPermission
 
 
 class _FakeView:
@@ -12,12 +12,12 @@ class _FakeView:
         self.kwargs = kwargs
 
 
-class IsProjectOwnerTests(TestCase):
-    """Unit tests for the IsProjectOwner permission class."""
+class ProjectPermissionTests(TestCase):
+    """Unit tests for the ProjectPermission permission class."""
 
     def setUp(self):
         self.factory = RequestFactory()
-        self.permission = IsProjectOwner()
+        self.permission = ProjectPermission()
         self.owner = User.objects.create_user(username="owner", password="pw")
         self.other = User.objects.create_user(username="other", password="pw")
         self.project = Project.objects.create(owner=self.owner, title="Novel")

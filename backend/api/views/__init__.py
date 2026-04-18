@@ -44,3 +44,11 @@ from .status import status_detail_view, status_list_view  # noqa: F401
 from .layout import compile_layout_detail_view, compile_layout_list_view  # noqa: F401
 from .compile import compile_view  # noqa: F401
 from .progress import progress_view  # noqa: F401
+from .sharing import (  # noqa: F401
+    override_detail_view,
+    override_list_view,
+    search_users_view,
+    share_detail_view,
+    share_list_view,
+    yjs_auth_view,
+)

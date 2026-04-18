@@ -28,6 +28,8 @@ from .views import (
     oidc_link_view,
     oidc_login_view,
     oidc_unlink_view,
+    override_detail_view,
+    override_list_view,
     progress_view,
     timezones_view,
     project_detail_view,
@@ -36,8 +38,12 @@ from .views import (
     register_view,
     reorder_view,
     scrivener_import_view,
+    search_users_view,
+    share_detail_view,
+    share_list_view,
     status_detail_view,
     status_list_view,
+    yjs_auth_view,
     ywriter_import_view,
     text_create_view,
     text_detail_view,
@@ -97,4 +103,12 @@ urlpatterns = [
     path("projects/<int:project_pk>/compile/", compile_view, name="project-compile"),
     # Progress tracking
     path("projects/<int:project_pk>/progress/", progress_view, name="project-progress"),
+    # Sharing
+    path("projects/<int:project_pk>/shares/", share_list_view, name="share-list"),
+    path("projects/<int:project_pk>/shares/search-users/", search_users_view, name="search-users"),
+    path("projects/<int:project_pk>/shares/<int:share_pk>/", share_detail_view, name="share-detail"),
+    path("projects/<int:project_pk>/overrides/", override_list_view, name="override-list"),
+    path("projects/<int:project_pk>/overrides/<int:override_pk>/", override_detail_view, name="override-detail"),
+    # Internal
+    path("internal/yjs-auth/", yjs_auth_view, name="yjs-auth"),
 ]

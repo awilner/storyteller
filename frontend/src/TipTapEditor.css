@@ -7,3 +7,34 @@
 }
 .ProseMirror { min-height: 280px; outline: none; font-family: var(--editor-font, system-ui); }
 .ProseMirror:focus { outline: none; }
+
+/* Collaboration cursors */
+.collaboration-cursor__caret {
+  border-left: 2px solid;
+  border-right: none;
+  margin-left: -1px;
+  margin-right: -1px;
+  pointer-events: none;
+  position: relative;
+  word-break: normal;
+}
+
+.collaboration-cursor__label {
+  position: absolute;
+  top: -1.4em;
+  left: -1px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 1px 6px;
+  border-radius: 3px 3px 3px 0;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  color: #fff;
+  /* Background color is set inline by the extension using the user's color */
+}
+
+/* Remote user text selection highlight.
+   Per-user selection styles are injected dynamically by selectionRender
+   in TipTapEditor.jsx using the user's cursor color at 30% opacity. */

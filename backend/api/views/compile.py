@@ -10,14 +10,14 @@ from rest_framework.response import Response
 
 from ..compiler.engine import CompileEngine
 from ..models import Project
-from ..permissions import IsProjectOwner
+from ..permissions import ProjectPermission
 from ..serializers import CompileRequestSerializer
 
 logger = logging.getLogger(__name__)
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated, IsProjectOwner])
+@permission_classes([IsAuthenticated, ProjectPermission])
 def compile_view(request, project_pk):
     """Compile project content and return the generated file."""
     project = get_object_or_404(Project, pk=project_pk)

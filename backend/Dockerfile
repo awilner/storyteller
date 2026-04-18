@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -12,11 +12,11 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir gunicorn -r requirements.txt
+COPY requirements.txt .
+RUN pip install --no-cache-dir daphne -r requirements.txt
 
-COPY backend/ .
-COPY docker/entrypoint.sh /entrypoint.sh
+COPY . .
+COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 RUN python manage.py collectstatic --noinput 2>/dev/null || true

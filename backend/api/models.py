@@ -274,7 +274,7 @@ class DailyWordCount(models.Model):
     """Records a user's daily contributions to a project."""
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="daily_word_count")
     date = models.DateField()
-    word_count = models.PositiveIntegerField(default=0)
+    word_count = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     user = models.ForeignKey(
@@ -304,9 +304,37 @@ class SessionWordCount(models.Model):
     
     class Meta:
         ordering = ["-ended_at"]
+        unique_together = ("project", "ended_at", "user")
 
     def __str__(self):
         return f"{self.project} {self.user} {self.ended_at} session: {self.word_count}"
+
+class UserProgressSettings(models.Model):
+    """Per-user-per-project progress settings for daily/session targets and session state."""
+
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="user_progress_settings",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="progress_settings",
+    )
+    daily_target = models.PositiveIntegerField(null=True, blank=True)
+    session_target = models.PositiveIntegerField(null=True, blank=True)
+    session_start_word_count = models.IntegerField(null=True, blank=True)
+    session_started_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("project", "user")
+
+    def __str__(self):
+        return f"ProgressSettings for {self.user} on {self.project}"
+
 
 class OIDCIdentity(models.Model):
     """Links an OIDC provider subject to a local Django user."""
@@ -348,3 +376,87 @@ class UserSettings(models.Model):
 
     def __str__(self):
         return f"Settings for {self.user}"
+
+
+class ProjectShare(models.Model):
+    """Links a User to a Project with a permission role."""
+
+    class Role(models.TextChoices):
+        READ_ONLY = 'read-only', 'Read Only'
+        CO_AUTHOR = 'co-author', 'Co-Author'
+
+    project = models.ForeignKey(
+        Project, on_delete=models.CASCADE, related_name='shares'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='project_shares'
+    )
+    role = models.CharField(max_length=20, choices=Role.choices)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('project', 'user')
+
+    def __str__(self):
+        return f'{self.user} → {self.project} ({self.role})'
+
+
+class ObjectPermissionOverride(models.Model):
+    """
+    Per-object permission override for a collaborator.
+    Exactly one of target_folder or target_file must be set.
+    Permission can only be equal to or lower than the user's project-level role.
+    """
+
+    class Permission(models.TextChoices):
+        READ_ONLY = 'read-only', 'Read Only'
+        NONE = 'none', 'No Access'
+
+    project = models.ForeignKey(
+        Project, on_delete=models.CASCADE,
+        related_name='permission_overrides'
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='permission_overrides'
+    )
+    target_folder = models.ForeignKey(
+        Folder, on_delete=models.CASCADE,
+        null=True, blank=True, related_name='permission_overrides'
+    )
+    target_file = models.ForeignKey(
+        ProjectFile, on_delete=models.CASCADE,
+        null=True, blank=True, related_name='permission_overrides'
+    )
+    permission = models.CharField(
+        max_length=20, choices=Permission.choices
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(target_folder__isnull=False, target_file__isnull=True) |
+                    models.Q(target_folder__isnull=True, target_file__isnull=False)
+                ),
+                name='override_exactly_one_target',
+            ),
+            models.UniqueConstraint(
+                fields=['user', 'target_folder'],
+                condition=models.Q(target_folder__isnull=False),
+                name='unique_user_folder_override',
+            ),
+            models.UniqueConstraint(
+                fields=['user', 'target_file'],
+                condition=models.Q(target_file__isnull=False),
+                name='unique_user_file_override',
+            ),
+        ]
+
+    def __str__(self):
+        target = self.target_folder or self.target_file
+        return f'{self.user} → {target} ({self.permission})'

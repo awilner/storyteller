@@ -222,6 +222,8 @@ export default function App() {
 
   // Editor view when a project is selected
   if (selectedProjectId) {
+    const selectedProject = projects.find((p) => p.id === selectedProjectId);
+    const projectRole = selectedProject?.role || null;
     return (
       <div className="app-editor-wrapper">
         <EditorView
@@ -232,6 +234,7 @@ export default function App() {
           onLogout={handleLogout}
           onDashboard={() => setSelectedProjectId(null)}
           username={user.username}
+          role={projectRole}
           onAccount={() => { setSelectedProjectId(null); setPage("account"); }}
           onSettings={() => { setSelectedProjectId(null); setPage("settings"); }}
         />
@@ -316,13 +319,23 @@ export default function App() {
                 <div className="project-card-row">
                   <div>
                     <strong>{p.title}</strong>
+                    {p.owner_name && (
+                      <span className="project-owner-badge">Shared by {p.owner_name}</span>
+                    )}
+                    {p.role && p.role !== "owner" && (
+                      <span className={`project-role-badge project-role-badge--${p.role}`}>
+                        {p.role === "co-author" ? "Co-Author" : "Read Only"}
+                      </span>
+                    )}
                     {p.description && <p className="project-description">{p.description}</p>}
                     <ProjectProgress projectId={p.id} />
                   </div>
                   <div className="project-card-buttons">
                     <button type="button" onClick={() => setSelectedProjectId(p.id)} className="btn btn-primary">Open</button>
                     <button type="button" onClick={() => startEditing(p)} className="btn btn-secondary">Edit</button>
-                    <button type="button" onClick={() => handleDeleteProject(p.id, p.title)} className="btn btn-danger">Delete</button>
+                    {(!p.role || p.role === "owner") && (
+                      <button type="button" onClick={() => handleDeleteProject(p.id, p.title)} className="btn btn-danger">Delete</button>
+                    )}
                     <div className="project-menu-wrapper" ref={menuProjectId === p.id ? menuRef : undefined}>
                       <button type="button" className="btn btn-ghost project-menu-btn" onClick={() => setMenuProjectId(menuProjectId === p.id ? null : p.id)} aria-label="More actions">⋯</button>
                       {menuProjectId === p.id && (

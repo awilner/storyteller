@@ -2,22 +2,67 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useI18n } from "./I18nContext";
 import { useFont } from "./FontContext";
 import useIsMobile from "./useIsMobile";
+import useProjectWebSocket from "./useProjectWebSocket";
 import TopBar from "./TopBar";
 import ProjectTree from "./ProjectTree";
 import TipTapEditor from "./TipTapEditor";
 import FormattingToolbar from "./FormattingToolbar";
 import FolderView from "./FolderView";
+import MarkdownRenderer from "./MarkdownRenderer";
 import VersionHistoryPanel from "./VersionHistoryPanel";
 import PropertiesPanel from "./PropertiesPanel";
 import CompileDialog from "./CompileDialog";
 import ProjectSettings from "./ProjectSettings";
 import ProgressPage from "./ProgressPage";
 import VersionBadge from "./VersionBadge";
-import { findFolderById } from "./treeUtils";
-import { fetchProjectTree, fetchFile, saveDraftCache, createVersion, createFolder, deleteFolder, createText, deleteText, updateFolder, updateText, updateProject, reorderTree, emptyTrash, exportScrivener, exportYWriter, duplicateFolder, duplicateText, copyToProject, fetchProjects, fetchUserSettings, fetchProgress as apiFetchProgress } from "./api";
+import ObjectPermissionPanel from "./ObjectPermissionPanel";
+import { findFolderById, getAncestorFolderIds } from "./treeUtils";
+import { fetchProjectTree, fetchFile, saveDraftCache, createVersion, createFolder, deleteFolder, createText, deleteText, updateFolder, updateText, updateProject, reorderTree, emptyTrash, exportScrivener, exportYWriter, duplicateFolder, duplicateText, copyToProject, fetchProjects, fetchUserSettings, fetchProgress as apiFetchProgress, fetchShares, fetchOverrides } from "./api";
 import "./EditorView.css";
 
 const DEBOUNCE_MS = 2000;
+
+/**
+ * Generate a deterministic HSL colour from a username string.
+ * Produces a saturated, medium-lightness colour suitable for cursor labels.
+ */
+/**
+ * Generate a distinct cursor color from a username.
+ * Uses FNV-1a hash with a finalizer mix for strong avalanche — even
+ * "fanta" vs "fanta2" vs "fanta3" produce very different hues.
+ * Returns a 6-digit hex string.
+ */
+function generateUserColor(name) {
+  if (!name) return "#6B7280";
+  // FNV-1a 32-bit hash
+  let h = 0x811c9dc5;
+  for (let i = 0; i < name.length; i++) {
+    h ^= name.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  // Murmur3 finalizer — ensures single-character differences avalanche fully
+  h = h >>> 0;
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  h = h >>> 0;
+  const hue = h % 360;
+  const s = 0.7, l = 0.45;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
+  const m = l - c / 2;
+  let r, g, b;
+  if (hue < 60)       { r = c; g = x; b = 0; }
+  else if (hue < 120) { r = x; g = c; b = 0; }
+  else if (hue < 180) { r = 0; g = c; b = x; }
+  else if (hue < 240) { r = 0; g = x; b = c; }
+  else if (hue < 300) { r = x; g = 0; b = c; }
+  else                { r = c; g = 0; b = x; }
+  const toHex = (v) => Math.round((v + m) * 255).toString(16).padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
 
 function getTrashFolderId(tree) {
   if (!tree?.folders) return null;
@@ -56,7 +101,7 @@ function isTextInsideTrash(tree, fileId) {
   return search(trashFolder.children);
 }
 
-export default function EditorView({ projectId, initialFileId, initialProgressOpen, onLogout, onDashboard, username, onAccount, onSettings }) {
+export default function EditorView({ projectId, initialFileId, initialProgressOpen, onLogout, onDashboard, username, role: initialRole, onAccount, onSettings }) {
   const t = useI18n();
   const { setProjectFont } = useFont();
   const isMobile = useIsMobile();
@@ -84,6 +129,7 @@ export default function EditorView({ projectId, initialFileId, initialProgressOp
   const [saving, setSaving] = useState(false);
   const [versionKey, setVersionKey] = useState(0);
   const [cacheWarning, setCacheWarning] = useState(null);
+  const [collabStatus, setCollabStatus] = useState("online");
 
   const [editorInstance, setEditorInstance] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -98,6 +144,107 @@ export default function EditorView({ projectId, initialFileId, initialProgressOp
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [propsCollapsed, setPropsCollapsed] = useState(false);
   const [statusExpanded, setStatusExpanded] = useState(false);
+
+  // ── Live role (updated via WebSocket) ──────────────────────
+  const [liveRole, setLiveRole] = useState(initialRole);
+
+  // Sync from parent when the projects list loads and provides the role
+  useEffect(() => {
+    if (initialRole) setLiveRole(initialRole);
+  }, [initialRole]);
+
+  const role = liveRole;
+  const canWrite = role === "owner" || role === "co-author";
+  const isOwner = role === "owner";
+
+  // ── Per-object overrides for the current user (co-authors) ─
+  const [myOverrides, setMyOverrides] = useState([]);
+
+  useEffect(() => {
+    if (role !== "co-author") {
+      setMyOverrides([]);
+      return;
+    }
+    fetchOverrides(projectId)
+      .then((data) => setMyOverrides(Array.isArray(data) ? data : []))
+      .catch(() => setMyOverrides([]));
+  }, [projectId, role]);
+
+  // ── Collaboration state ────────────────────────────────────
+  const [hasShares, setHasShares] = useState(false);
+  const isCollaborative = role && role !== "owner" || hasShares;
+  const userColor = generateUserColor(username);
+
+  // Fetch shares to determine if collaboration mode is needed for owners
+  useEffect(() => {
+    if (role !== "owner") {
+      // Non-owners are always in collaborative mode
+      setHasShares(true);
+      return;
+    }
+    fetchShares(projectId)
+      .then((shares) => setHasShares(Array.isArray(shares) && shares.length > 0))
+      .catch(() => setHasShares(false));
+  }, [projectId, role]);
+
+  // ── WebSocket for real-time permission notifications ───────
+  const [wsNotification, setWsNotification] = useState(null);
+
+  // Helper: re-fetch the project tree and update local state.
+  const _refreshTreeFromWs = useCallback(() => {
+    fetchProjectTree(projectId)
+      .then((d) => {
+        setTree(d);
+        if (d.role) setLiveRole(d.role);
+      })
+      .catch(() => {});
+  }, [projectId]);
+
+  const wsHandlers = useCallback(() => ({
+    onPermissionChanged: (data) => {
+      // If this is a project-level role change targeting the current user,
+      // update the live role and show a notification on downgrade.
+      if (data.username === username && data.new_role && !data.target_folder && !data.target_file) {
+        const prevRole = liveRole;
+        setLiveRole(data.new_role);
+        if (prevRole === "co-author" && data.new_role === "read-only") {
+          setCacheWarning(t("sharing.downgraded_to_read_only") || "Your role has been changed to read-only. Editing is now disabled.");
+        }
+      }
+      // Any permission change (role or override) that affects the current
+      // user should refresh the tree (which filters blocked objects) and
+      // re-fetch the user's overrides so the UI updates immediately.
+      if (data.user_id || data.username === username) {
+        _refreshTreeFromWs();
+        if (liveRole === "co-author") {
+          fetchOverrides(projectId)
+            .then((d) => setMyOverrides(Array.isArray(d) ? d : []))
+            .catch(() => {});
+        }
+      }
+      // Refresh sharing panels for any permission change event.
+      setWsNotification({ type: "permission_changed", data, ts: Date.now() });
+    },
+    onAccessRevoked: (data) => {
+      // The consumer only sends this to the affected user, so if we
+      // receive it, our access has been revoked.
+      setWsNotification({ type: "access_revoked", data, ts: Date.now() });
+      alert(data.message || t("sharing.access_revoked_message") || "Your access to this project has been revoked.");
+      onDashboard();
+    },
+    onPresenceUpdate: (data) => {
+      setWsNotification({ type: "presence", data, ts: Date.now() });
+    },
+    // Tree, settings, labels, and statuses are all part of the tree
+    // response, so a single re-fetch covers all of them.
+    onTreeChanged: _refreshTreeFromWs,
+    onSettingsChanged: _refreshTreeFromWs,
+    onLabelsChanged: _refreshTreeFromWs,
+    onStatusesChanged: _refreshTreeFromWs,
+    onLayoutsChanged: _refreshTreeFromWs,
+  }), [t, onDashboard, username, liveRole, projectId, _refreshTreeFromWs]);
+
+  useProjectWebSocket(projectId, wsHandlers());
 
   // ── URL sync ───────────────────────────────────────────────
   // Keep a ref so the popstate handler always sees the latest without re-registering.
@@ -227,6 +374,16 @@ export default function EditorView({ projectId, initialFileId, initialProgressOp
         setSelectedItem(null);
         setSelectedType(null);
       }
+    } else if (selectedType === "folder" && selectedItem?.id) {
+      // Refresh the selected folder from the updated tree so metadata
+      // (label, status, etc.) stays current after WebSocket-driven refreshes.
+      const folder = findFolderById(tree?.folders, selectedItem.id);
+      if (folder) {
+        setSelectedItem(folder);
+      } else {
+        setSelectedItem(null);
+        setSelectedType(null);
+      }
     } else if (!restoredRef.current) {
       // One-time: restore folder selection from localStorage
       restoredRef.current = true;
@@ -250,8 +407,16 @@ export default function EditorView({ projectId, initialFileId, initialProgressOp
 
   useEffect(() => {
     if (!editorInstance) {
-      setWordCount(0);
-      setCharCount(0);
+      // No editor instance — either no file selected or read-only mode.
+      // In read-only mode, compute counts from the raw markdown content.
+      if (activeFileId && fileContent) {
+        const plain = fileContent.replace(/[#*_~`>\[\]()!|\-]/g, "").trim();
+        setCharCount(plain.length);
+        setWordCount(plain ? plain.split(/\s+/).length : 0);
+      } else {
+        setWordCount(0);
+        setCharCount(0);
+      }
       return;
     }
     const updateCounts = () => {
@@ -265,7 +430,7 @@ export default function EditorView({ projectId, initialFileId, initialProgressOp
     return () => {
       editorInstance.off("transaction", updateCounts);
     };
-  }, [editorInstance]);
+  }, [editorInstance, activeFileId, fileContent]);
 
   useEffect(() => {
     setTreeLoading(true);
@@ -274,6 +439,11 @@ export default function EditorView({ projectId, initialFileId, initialProgressOp
       .then((data) => {
         setTree(data);
         setProjectFont(data.settings?.editor_font || "");
+        // The tree response includes the authenticated user's role on this
+        // project, derived from the permission engine. Always trust it.
+        if (data.role) {
+          setLiveRole(data.role);
+        }
       })
       .catch((err) => setTreeError(err.message))
       .finally(() => setTreeLoading(false));
@@ -416,6 +586,7 @@ export default function EditorView({ projectId, initialFileId, initialProgressOp
     try {
       const data = await fetchProjectTree(projectId);
       setTree(data);
+      if (data.role) setLiveRole(data.role);
     } catch (err) {
       setTreeError(err.message);
     }
@@ -717,6 +888,41 @@ export default function EditorView({ projectId, initialFileId, initialProgressOp
     return () => { if (autoSaveRef.current) clearInterval(autoSaveRef.current); };
   }, [autoSaveInterval]);
 
+  // Derive a refresh key for sharing panels from WebSocket notifications
+  const sharingRefreshKey = wsNotification?.ts || 0;
+
+  // Compute ancestor folder IDs for the selected item (used by ObjectPermissionPanel)
+  const selectedAncestorIds = selectedItem && tree
+    ? getAncestorFolderIds(tree.folders, selectedType === "text" ? "file" : "folder", selectedItem.id)
+    : [];
+
+  // Compute effective permission on the selected object for the current user.
+  // Owners always have full access. For co-authors, check per-object overrides.
+  const objectEffectivePerm = (() => {
+    if (!role || role === "owner") return role;
+    if (role !== "co-author" || !selectedItem) return role;
+
+    const RANK = { "co-author": 2, "read-only": 1, "none": 0 };
+
+    const targetKey = selectedType === "text" ? "target_file" : "target_folder";
+    const directOverride = myOverrides.find(
+      (o) => o[targetKey] === selectedItem.id
+    );
+    const ownPerm = directOverride ? directOverride.permission : role;
+
+    let parentPerm = role;
+    for (let i = selectedAncestorIds.length - 1; i >= 0; i--) {
+      const match = myOverrides.find(
+        (o) => o.target_folder === selectedAncestorIds[i]
+      );
+      if (match) { parentPerm = match.permission; break; }
+    }
+
+    return (RANK[ownPerm] ?? 2) <= (RANK[parentPerm] ?? 2) ? ownPerm : parentPerm;
+  })();
+
+  const canWriteObject = objectEffectivePerm === "owner" || objectEffectivePerm === "co-author";
+
   const sidebarContent = (
     <div className="editor-sidebar-inner">
       <div className="editor-sidebar-tree">
@@ -729,25 +935,27 @@ export default function EditorView({ projectId, initialFileId, initialProgressOp
             onSelectFile={handleSelectFile}
             onSelectFolder={handleSelectFolder}
             selectedFolderId={selectedType === "folder" ? selectedItem?.id : null}
-            onAddFolder={handleAddFolder}
-            onDeleteFolder={handleDeleteFolder}
-            onAddText={handleAddText}
-            onDeleteText={handleDeleteText}
-            onReorder={handleReorder}
-            onRenameFolder={handleRenameFolder}
-            onRenameText={handleRenameText}
-            onChangeFolderIcon={handleChangeFolderIcon}
-            onChangeTextIcon={handleChangeTextIcon}
-            onEmptyTrash={handleEmptyTrash}
-            onDuplicateFolder={handleDuplicateFolder}
-            onDuplicateText={handleDuplicateText}
-            onCopyToProject={handleCopyToProject}
+            onAddFolder={canWrite ? handleAddFolder : null}
+            onDeleteFolder={canWrite ? handleDeleteFolder : null}
+            onAddText={canWrite ? handleAddText : null}
+            onDeleteText={canWrite ? handleDeleteText : null}
+            onReorder={canWrite ? handleReorder : null}
+            onRenameFolder={canWrite ? handleRenameFolder : null}
+            onRenameText={canWrite ? handleRenameText : null}
+            onChangeFolderIcon={canWrite ? handleChangeFolderIcon : null}
+            onChangeTextIcon={canWrite ? handleChangeTextIcon : null}
+            onEmptyTrash={canWrite ? handleEmptyTrash : null}
+            onDuplicateFolder={canWrite ? handleDuplicateFolder : null}
+            onDuplicateText={canWrite ? handleDuplicateText : null}
+            onCopyToProject={canWrite ? handleCopyToProject : null}
             otherProjects={otherProjects}
             labels={tree?.labels}
             statuses={tree?.statuses}
             characters={tree?.characters}
             treeSettings={tree?.settings}
             isMobile={isMobile}
+            role={role}
+            overrides={myOverrides}
           />
         )}
       </div>
@@ -765,7 +973,12 @@ export default function EditorView({ projectId, initialFileId, initialProgressOp
               aria-label={t("editor.dismiss_warning")}>✕</button>
           </div>
         )}
-        {activeFileId && (
+        {isCollaborative && collabStatus === "offline" && (
+          <div className="editor-banner editor-banner--sync-offline" role="status">
+            ⚡ {t("editor.sync_offline") || "Real-time sync is offline — changes are saved locally only"}
+          </div>
+        )}
+        {activeFileId && canWriteObject && (
         <div className="editor-topbar">
           <FormattingToolbar editor={editorInstance} />
           <button type="button" className="editor-save-btn" onClick={handleSave} disabled={saving || !activeFileId}>
@@ -785,8 +998,23 @@ export default function EditorView({ projectId, initialFileId, initialProgressOp
         )}
         {fileLoading && <p className="loading-text">{t("editor.loading_file")}</p>}
         {fileError && <p className="error-text">{fileError}</p>}
-        {activeFileId && !fileLoading && !fileError && fileContent != null && (
-          <TipTapEditor content={fileContent} onUpdate={handleEditorUpdate} editorRef={setEditorInstance} />
+        {activeFileId && !fileLoading && !fileError && fileContent != null && canWriteObject && (
+          <TipTapEditor
+            content={fileContent}
+            onUpdate={handleEditorUpdate}
+            editorRef={setEditorInstance}
+            isCollaborative={isCollaborative}
+            fileId={activeFileId}
+            username={username}
+            userColor={userColor}
+            permission={role}
+            onCollabStatusChange={setCollabStatus}
+          />
+        )}
+        {activeFileId && !fileLoading && !fileError && fileContent != null && !canWriteObject && (
+          <div className="editor-readonly-view">
+            <MarkdownRenderer content={fileContent} className="editor-readonly-content" />
+          </div>
         )}
       </div>
 
@@ -797,7 +1025,7 @@ export default function EditorView({ projectId, initialFileId, initialProgressOp
         const wc = showFile ? wordCount : folderWordCount;
         const cc = showFile ? charCount : folderCharCount;
         const target = selectedItem?.target_word_count;
-        const hasProgress = progressData?.manuscript_target != null || progressData?.daily_target != null || progressData?.session_target != null;
+        const hasProgress = progressData?.manuscript_target != null || (canWrite && (progressData?.daily_target != null || progressData?.session_target != null));
         return (
           <div className="editor-status-bar" aria-live="polite">
             <span>{wc.toLocaleString()} {t("editor.words")}</span>
@@ -827,10 +1055,10 @@ export default function EditorView({ projectId, initialFileId, initialProgressOp
                 const msPct = Math.min(Math.round((progressData.current_word_count / progressData.manuscript_target) * 100), 100);
                 return <span>{t("status.manuscript")}: {progressData.current_word_count.toLocaleString()}/{progressData.manuscript_target.toLocaleString()} ({msPct}%)</span>;
               })()}
-              {progressData?.daily_target != null && (
+              {canWrite && progressData?.daily_target != null && (
                 <span>{t("dashboard.daily_progress")}: {progressData.daily_word_count.toLocaleString()}/{progressData.daily_target.toLocaleString()} ({Math.min(Math.round((progressData.daily_word_count / progressData.daily_target) * 100), 100)}%)</span>
               )}
-              {progressData?.session_target != null && (
+              {canWrite && progressData?.session_target != null && (
                 <span>{t("status.session")}: {progressData.session_word_count.toLocaleString()}/{progressData.session_target.toLocaleString()} ({Math.min(Math.round((progressData.session_word_count / progressData.session_target) * 100), 100)}%)</span>
               )}
             </div>
@@ -842,8 +1070,11 @@ export default function EditorView({ projectId, initialFileId, initialProgressOp
 
   const propertiesContent = (
     <div className={isMobile ? "editor-right-panel--mobile" : "editor-right-panel"}>
-      {selectedItem && <PropertiesPanel item={selectedItem} type={selectedType} onSave={handleSaveProperties} characters={tree?.characters} labels={tree?.labels} statuses={tree?.statuses} />}
-      {activeFileId && <VersionHistoryPanel fileId={activeFileId} onRevert={handleRevert} refreshKey={versionKey} />}
+      {selectedItem && <PropertiesPanel item={selectedItem} type={selectedType} onSave={canWriteObject ? handleSaveProperties : null} characters={tree?.characters} labels={tree?.labels} statuses={tree?.statuses} />}
+      {selectedItem && (selectedType === "folder" || selectedType === "text") && (
+        <ObjectPermissionPanel projectId={projectId} role={role} objectType={selectedType === "text" ? "file" : "folder"} objectId={selectedItem.id} ancestorFolderIds={selectedAncestorIds} refreshKey={sharingRefreshKey} username={username} />
+      )}
+      {activeFileId && <VersionHistoryPanel fileId={activeFileId} onRevert={canWriteObject ? handleRevert : null} refreshKey={versionKey} />}
     </div>
   );
 
@@ -851,7 +1082,7 @@ export default function EditorView({ projectId, initialFileId, initialProgressOp
   if (isMobile) {
     return (
       <div className="editor-mobile-wrapper">
-        <TopBar projectTitle={tree?.title} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} onExportScrivener={handleExportScrivener} onExportYWriter={handleExportYWriter} onCompile={handleCompile} onProjectSettings={handleProjectSettings} onProgressTracking={handleProgressTracking} />
+        <TopBar projectTitle={tree?.title} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} onExportScrivener={handleExportScrivener} onExportYWriter={handleExportYWriter} onCompile={handleCompile} onProjectSettings={handleProjectSettings} onProgressTracking={handleProgressTracking} role={role} />
         <div className="editor-mobile-tabs">
           <button type="button" className={`editor-mobile-tab${mobilePanel === "tree" ? " editor-mobile-tab--active" : ""}`} onClick={() => setMobilePanel("tree")}>📁 Tree</button>
           <button type="button" className={`editor-mobile-tab${mobilePanel === "editor" ? " editor-mobile-tab--active" : ""}`} onClick={() => setMobilePanel("editor")}>✏️ Editor</button>
@@ -869,7 +1100,7 @@ export default function EditorView({ projectId, initialFileId, initialProgressOp
           )}
         </div>
         {compileOpen && <CompileDialog projectId={projectId} tree={tree} onClose={() => setCompileOpen(false)} />}
-        {projectSettingsOpen && <ProjectSettings projectId={projectId} settings={tree?.settings} onClose={handleCloseProjectSettings} onRefresh={refreshTree} />}
+        {projectSettingsOpen && <ProjectSettings projectId={projectId} settings={tree?.settings} onClose={handleCloseProjectSettings} onRefresh={refreshTree} role={role} />}
       </div>
     );
   }
@@ -877,7 +1108,7 @@ export default function EditorView({ projectId, initialFileId, initialProgressOp
   // ── Desktop layout ─────────────────────────────────────────
   return (
     <div className="editor-desktop-wrapper">
-      <TopBar projectTitle={tree?.title} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} onExportScrivener={handleExportScrivener} onExportYWriter={handleExportYWriter} onCompile={handleCompile} onProjectSettings={handleProjectSettings} onProgressTracking={handleProgressTracking} />
+      <TopBar projectTitle={tree?.title} onHome={onDashboard} username={username} onAccount={onAccount} onSettings={onSettings} onLogout={onLogout} onExportScrivener={handleExportScrivener} onExportYWriter={handleExportYWriter} onCompile={handleCompile} onProjectSettings={handleProjectSettings} onProgressTracking={handleProgressTracking} role={role} />
       {progressOpen ? (
         <ProgressPage projectId={projectId} onClose={handleCloseProgress} onDataLoaded={setProgressData} initialData={progressData} />
       ) : (
@@ -898,14 +1129,17 @@ export default function EditorView({ projectId, initialFileId, initialProgressOp
         </div>
         {(selectedItem || activeFileId) && !propsCollapsed && (
           <div className="editor-right-panel">
-            {selectedItem && <PropertiesPanel item={selectedItem} type={selectedType} onSave={handleSaveProperties} characters={tree?.characters} labels={tree?.labels} statuses={tree?.statuses} />}
-            {activeFileId && <VersionHistoryPanel fileId={activeFileId} onRevert={handleRevert} refreshKey={versionKey} />}
+            {selectedItem && <PropertiesPanel item={selectedItem} type={selectedType} onSave={canWriteObject ? handleSaveProperties : null} characters={tree?.characters} labels={tree?.labels} statuses={tree?.statuses} />}
+            {selectedItem && (selectedType === "folder" || selectedType === "text") && (
+              <ObjectPermissionPanel projectId={projectId} role={role} objectType={selectedType === "text" ? "file" : "folder"} objectId={selectedItem.id} ancestorFolderIds={selectedAncestorIds} refreshKey={sharingRefreshKey} username={username} />
+            )}
+            {activeFileId && <VersionHistoryPanel fileId={activeFileId} onRevert={canWriteObject ? handleRevert : null} refreshKey={versionKey} />}
           </div>
         )}
       </div>
       )}
       {compileOpen && <CompileDialog projectId={projectId} tree={tree} onClose={() => setCompileOpen(false)} />}
-      {projectSettingsOpen && <ProjectSettings projectId={projectId} settings={tree?.settings} onClose={handleCloseProjectSettings} onRefresh={refreshTree} />}
+      {projectSettingsOpen && <ProjectSettings projectId={projectId} settings={tree?.settings} onClose={handleCloseProjectSettings} onRefresh={refreshTree} role={role} />}
     </div>
   );
 }

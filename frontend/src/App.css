@@ -81,3 +81,33 @@
   z-index: 100;
   overflow: hidden;
 }
+
+/* Sharing badges on dashboard */
+.project-owner-badge {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 11px;
+  color: #666;
+  font-weight: 400;
+  font-style: italic;
+}
+
+.project-role-badge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.project-role-badge--read-only {
+  background: #e8f0fe;
+  color: #1a73e8;
+}
+
+.project-role-badge--co-author {
+  background: #e6f4ea;
+  color: #137333;
+}

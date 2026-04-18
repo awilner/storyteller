@@ -351,6 +351,47 @@ export const resetSession = (projectId) =>
     body: JSON.stringify({ action: "reset_session" }),
   });
 
+// Sharing
+export const fetchShares = (projectId) =>
+  request(`${API_BASE}/projects/${projectId}/shares/`);
+
+export const createShare = (projectId, username, role) =>
+  request(`${API_BASE}/projects/${projectId}/shares/`, {
+    method: "POST",
+    body: JSON.stringify({ username, role }),
+  });
+
+export const updateShare = (projectId, shareId, role) =>
+  request(`${API_BASE}/projects/${projectId}/shares/${shareId}/`, {
+    method: "PATCH",
+    body: JSON.stringify({ role }),
+  });
+
+export const deleteShare = (projectId, shareId) =>
+  request(`${API_BASE}/projects/${projectId}/shares/${shareId}/`, { method: "DELETE" });
+
+export const searchUsers = (projectId, query) =>
+  request(`${API_BASE}/projects/${projectId}/shares/search-users/?q=${encodeURIComponent(query)}`);
+
+// Object permission overrides
+export const fetchOverrides = (projectId) =>
+  request(`${API_BASE}/projects/${projectId}/overrides/`);
+
+export const createOverride = (projectId, data) =>
+  request(`${API_BASE}/projects/${projectId}/overrides/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const updateOverride = (projectId, overrideId, data) =>
+  request(`${API_BASE}/projects/${projectId}/overrides/${overrideId}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+
+export const deleteOverride = (projectId, overrideId) =>
+  request(`${API_BASE}/projects/${projectId}/overrides/${overrideId}/`, { method: "DELETE" });
+
 // App version
 export const fetchAppVersion = () => request(`${API_BASE}/version/`);
 

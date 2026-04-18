@@ -78,7 +78,8 @@ jobs:
         id: build
         uses: docker/build-push-action@v6
         with:
-          file: ./docker/frontend.Dockerfile 
+          context: ./frontend
+          file: ./frontend/Dockerfile
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=ghcr.io/awilner/storyteller/frontend,push-by-digest=true,name-canonical=true,push=true
 
@@ -144,8 +145,8 @@ jobs:
         id: build
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: ./docker/backend.Dockerfile 
+          context: ./backend
+          file: ./backend/Dockerfile
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=ghcr.io/awilner/storyteller/backend,push-by-digest=true,name-canonical=true,push=true
 
@@ -163,9 +164,69 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  build-hocuspocus:
+    runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    needs: test
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Extract platform name
+        id: platform
+        run: echo "name=${PLATFORM//\//-}" >> $GITHUB_OUTPUT
+        env:
+          PLATFORM: ${{ matrix.platform }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./hocuspocus
+          file: ./hocuspocus/Dockerfile
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=ghcr.io/awilner/storyteller/hocuspocus,push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-hocuspocus-${{ steps.platform.outputs.name }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
   merge:
     runs-on: ubuntu-latest
-    needs: [build-frontend, build-backend]
+    needs: [build-frontend, build-backend, build-hocuspocus]
 
     permissions:
       contents: read
@@ -185,6 +246,13 @@ jobs:
         with:
           path: /tmp/digests-backend
           pattern: digests-backend-*
+          merge-multiple: true
+
+      - name: Download hocuspocus digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests-hocuspocus
+          pattern: digests-hocuspocus-*
           merge-multiple: true
 
       - name: Set up Docker Buildx
@@ -227,6 +295,21 @@ jobs:
             type=sha
             type=raw,value=release,enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, 'beta') }}
 
+      - name: Extract hocuspocus metadata (tags, labels) for Docker
+        id: meta-hocuspocus
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/awilner/storyteller/hocuspocus
+          flavor: |
+            latest=true
+          tags: |
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha
+            type=raw,value=release,enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, 'beta') }}
+
       - name: Create frontend manifest list and push
         working-directory: /tmp/digests-frontend
         run: |
@@ -242,3 +325,11 @@ jobs:
             $(printf 'ghcr.io/awilner/storyteller/backend@sha256:%s ' *)
         env:
           DOCKER_METADATA_OUTPUT_JSON: ${{ steps.meta-backend.outputs.json }}
+
+      - name: Create hocuspocus manifest list and push
+        working-directory: /tmp/digests-hocuspocus
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf 'ghcr.io/awilner/storyteller/hocuspocus@sha256:%s ' *)
+        env:
+          DOCKER_METADATA_OUTPUT_JSON: ${{ steps.meta-hocuspocus.outputs.json }}

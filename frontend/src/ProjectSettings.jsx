@@ -4,9 +4,10 @@ import LabelManager from "./LabelManager";
 import StatusManager from "./StatusManager";
 import LayoutEditor, { DEFAULT_LAYOUT_SETTINGS } from "./LayoutEditor";
 import { updateProject, fetchCompileLayouts, createCompileLayout, updateCompileLayout, deleteCompileLayout } from "./api";
+import SharingPanel from "./SharingPanel";
 import "./ProjectSettings.css";
 
-function LayoutManager({ projectId, t }) {
+function LayoutManager({ projectId, t, readOnly }) {
   const [layouts, setLayouts] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [error, setError] = useState(null);
@@ -64,10 +65,10 @@ function LayoutManager({ projectId, t }) {
         {layouts.map((l) => (
           <div key={l.id} className={`layout-manager-item${selectedId === l.id ? " layout-manager-item--active" : ""}`} onClick={() => setSelectedId(l.id)}>
             <span className="layout-manager-item-name">{l.name}</span>
-            <button type="button" className="label-manager-btn label-manager-btn--danger" onClick={(e) => { e.stopPropagation(); handleDelete(l.id); }} aria-label="Delete">✕</button>
+            {!readOnly && <button type="button" className="label-manager-btn label-manager-btn--danger" onClick={(e) => { e.stopPropagation(); handleDelete(l.id); }} aria-label="Delete">✕</button>}
           </div>
         ))}
-        <button type="button" className="label-manager-btn" style={{ marginTop: 8 }} onClick={handleAdd}>{t("compile.new_layout")}</button>
+        {!readOnly && <button type="button" className="label-manager-btn" style={{ marginTop: 8 }} onClick={handleAdd}>{t("compile.new_layout")}</button>}
       </div>
       <div className="layout-manager-content">
         {selected ? (
@@ -75,9 +76,10 @@ function LayoutManager({ projectId, t }) {
             <div className="psettings-field" style={{ marginBottom: 12 }}>
               <label>{t("compile.layout_name")}</label>
               <input type="text" value={selected.name} onChange={(e) => handleNameChange(selected.id, e.target.value)}
+                disabled={readOnly}
                 style={{ flex: 1, padding: "4px 8px", border: "1px solid #ccc", borderRadius: 4, fontSize: 13 }} />
             </div>
-            <LayoutEditor settings={{ ...DEFAULT_LAYOUT_SETTINGS, ...selected.settings }} onChange={(key, value) => handleSettingsChange(selected.id, key, value)} t={t} />
+            <LayoutEditor settings={{ ...DEFAULT_LAYOUT_SETTINGS, ...selected.settings }} onChange={readOnly ? () => {} : (key, value) => handleSettingsChange(selected.id, key, value)} t={t} />
           </>
         ) : (
           <div style={{ color: "#999", fontSize: 13, padding: 12 }}>Select a layout or create a new one.</div>
@@ -88,9 +90,10 @@ function LayoutManager({ projectId, t }) {
   );
 }
 
-export default function ProjectSettings({ projectId, settings, onClose, onRefresh }) {
+export default function ProjectSettings({ projectId, settings, onClose, onRefresh, role }) {
   const t = useI18n();
   const [tab, setTab] = useState("general");
+  const canEdit = role === "owner" || role === "co-author";
   const [iconBgSource, setIconBgSource] = useState(settings?.tree_icon_bg_source || "");
   const [textColourSource, setTextColourSource] = useState(settings?.tree_text_colour_source || "");
   const [textBgSource, setTextBgSource] = useState(settings?.tree_text_bg_source || "");
@@ -118,6 +121,7 @@ export default function ProjectSettings({ projectId, settings, onClose, onRefres
         <h3>{t("topbar.project_settings")}</h3>
         <div className="psettings-tabs">
           <button type="button" className={`psettings-tab${tab === "general" ? " psettings-tab--active" : ""}`} onClick={() => setTab("general")}>{t("settings.general_tab")}</button>
+          <button type="button" className={`psettings-tab${tab === "sharing" ? " psettings-tab--active" : ""}`} onClick={() => setTab("sharing")}>{t("settings.sharing_tab")}</button>
           <button type="button" className={`psettings-tab${tab === "labels" ? " psettings-tab--active" : ""}`} onClick={() => setTab("labels")}>{t("labels.title")}</button>
           <button type="button" className={`psettings-tab${tab === "statuses" ? " psettings-tab--active" : ""}`} onClick={() => setTab("statuses")}>{t("statuses.title")}</button>
           <button type="button" className={`psettings-tab${tab === "layouts" ? " psettings-tab--active" : ""}`} onClick={() => setTab("layouts")}>{t("settings.layouts_tab")}</button>
@@ -129,6 +133,7 @@ export default function ProjectSettings({ projectId, settings, onClose, onRefres
                 <label>{t("settings.auto_save_interval")}</label>
                 <input type="number" min="0" step="10" style={{ width: 100, padding: "4px 8px", border: "1px solid #ccc", borderRadius: 4, fontSize: 13 }}
                   value={autoSaveVal}
+                  disabled={!canEdit}
                   onChange={(e) => {
                     const raw = e.target.value;
                     setAutoSaveVal(raw);
@@ -139,14 +144,15 @@ export default function ProjectSettings({ projectId, settings, onClose, onRefres
               <p style={{ fontSize: 11, color: "#999", margin: "0 0 16px" }}>{t("settings.auto_save_project_hint")}</p>
 
               <h4 style={{ margin: "0 0 8px", fontSize: 13, color: "#555" }}>{t("settings.project_tree_section")}</h4>
-              <div className="psettings-field"><label>{t("settings.tree_icon_bg")}</label><select value={iconBgSource} onChange={(e) => { setIconBgSource(e.target.value); handleSetting("tree_icon_bg_source", e.target.value); }}>{sourceOptions}</select></div>
-              <div className="psettings-field"><label>{t("settings.tree_text_colour")}</label><select value={textColourSource} onChange={(e) => { setTextColourSource(e.target.value); handleSetting("tree_text_colour_source", e.target.value); }}>{sourceOptions}</select></div>
-              <div className="psettings-field"><label>{t("settings.tree_text_bg")}</label><select value={textBgSource} onChange={(e) => { setTextBgSource(e.target.value); handleSetting("tree_text_bg_source", e.target.value); }}>{sourceOptions}</select></div>
+              <div className="psettings-field"><label>{t("settings.tree_icon_bg")}</label><select value={iconBgSource} disabled={!canEdit} onChange={(e) => { setIconBgSource(e.target.value); handleSetting("tree_icon_bg_source", e.target.value); }}>{sourceOptions}</select></div>
+              <div className="psettings-field"><label>{t("settings.tree_text_colour")}</label><select value={textColourSource} disabled={!canEdit} onChange={(e) => { setTextColourSource(e.target.value); handleSetting("tree_text_colour_source", e.target.value); }}>{sourceOptions}</select></div>
+              <div className="psettings-field"><label>{t("settings.tree_text_bg")}</label><select value={textBgSource} disabled={!canEdit} onChange={(e) => { setTextBgSource(e.target.value); handleSetting("tree_text_bg_source", e.target.value); }}>{sourceOptions}</select></div>
             </div>
           )}
-          {tab === "labels" && <LabelManager projectId={projectId} onClose={() => {}} embedded />}
-          {tab === "statuses" && <StatusManager projectId={projectId} onClose={() => {}} embedded />}
-          {tab === "layouts" && <LayoutManager projectId={projectId} t={t} />}
+          {tab === "sharing" && <SharingPanel projectId={projectId} role={role} />}
+          {tab === "labels" && <LabelManager projectId={projectId} onClose={() => {}} embedded readOnly={!canEdit} />}
+          {tab === "statuses" && <StatusManager projectId={projectId} onClose={() => {}} embedded readOnly={!canEdit} />}
+          {tab === "layouts" && <LayoutManager projectId={projectId} t={t} readOnly={!canEdit} />}
         </div>
         <div className="psettings-footer">
           <button type="button" className="btn btn-ghost" onClick={onClose}>Close</button>

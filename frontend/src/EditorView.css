@@ -53,6 +53,26 @@
   padding: 0 12px 24px;
 }
 
+.editor-readonly-view {
+  padding: 16px 4px;
+}
+
+.editor-readonly-content {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #333;
+}
+
+.editor-readonly-content h1,
+.editor-readonly-content h2,
+.editor-readonly-content h3 {
+  margin: 1em 0 0.5em;
+}
+
+.editor-readonly-content p {
+  margin: 0 0 0.8em;
+}
+
 .editor-banner {
   background: #fff3cd;
   color: #856404;
@@ -67,6 +87,12 @@
   border: none;
   cursor: pointer;
   font-weight: bold;
+}
+
+.editor-banner--sync-offline {
+  background: #e8f0fe;
+  color: #3367d6;
+  border-bottom-color: #a8c7fa;
 }
 
 .editor-placeholder {

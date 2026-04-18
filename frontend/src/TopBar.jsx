@@ -3,7 +3,7 @@ import { useI18n } from "./I18nContext";
 import logoSrc from "../resources/Storyteller.svg";
 import "./TopBar.css";
 
-export default function TopBar({ projectTitle, onHome, username, onAccount, onSettings, onLogout, onExportScrivener, onExportYWriter, onCompile, onProjectSettings, onProgressTracking }) {
+export default function TopBar({ projectTitle, onHome, username, onAccount, onSettings, onLogout, onExportScrivener, onExportYWriter, onCompile, onProjectSettings, onProgressTracking, role }) {
   const t = useI18n();
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
@@ -80,6 +80,11 @@ export default function TopBar({ projectTitle, onHome, username, onAccount, onSe
             </div>
           ) : (
             <span className="topbar-context">{projectTitle}</span>
+          )}
+          {role && role !== "owner" && (
+            <span className={`topbar-role-tag topbar-role-tag--${role}`}>
+              {role === "co-author" ? "Co-Author" : "Read Only"}
+            </span>
           )}
         </>
       )}
