@@ -10,7 +10,7 @@ from rest_framework.response import Response
 
 from ..import_export import export_scrivener, export_ywriter
 from ..models import Project
-from ..permissions import IsProjectOwner
+from ..permissions import ProjectPermission
 from ..import_export import import_scrivener_zip
 from ..serializers import ProjectListSerializer
 from ..import_export import import_ywriter
@@ -49,7 +49,7 @@ def ywriter_import_view(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated, IsProjectOwner])
+@permission_classes([IsAuthenticated, ProjectPermission])
 def export_scrivener_view(request, project_pk):
     """Export a project as a Scrivener .scriv.zip file."""
     project = get_object_or_404(Project, pk=project_pk)
@@ -61,7 +61,7 @@ def export_scrivener_view(request, project_pk):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated, IsProjectOwner])
+@permission_classes([IsAuthenticated, ProjectPermission])
 def export_ywriter_view(request, project_pk):
     """Export a project as a yWriter7 .yw7 file."""
     project = get_object_or_404(Project, pk=project_pk)

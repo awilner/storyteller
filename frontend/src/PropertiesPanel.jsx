@@ -18,6 +18,13 @@ export default function PropertiesPanel({ item, type, onSave, characters, labels
   const [error, setError] = useState(null);
   const [dirty, setDirty] = useState(false);
 
+  // Reset form when the item changes or when its metadata is updated
+  // externally (e.g. a collaborator deletes a label, causing the tree
+  // to refresh with label: null).
+  const itemFingerprint = item
+    ? `${item.id}|${item.title}|${item.label ?? ""}|${item.status ?? ""}|${item.pov_character ?? ""}|${item.description ?? ""}|${item.colour ?? ""}`
+    : "";
+
   useEffect(() => {
     if (!item) return;
     setForm({
@@ -33,7 +40,7 @@ export default function PropertiesPanel({ item, type, onSave, characters, labels
     });
     setDirty(false);
     setError(null);
-  }, [item?.id]);
+  }, [itemFingerprint]);
 
   const handleChange = useCallback((field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -72,30 +79,31 @@ export default function PropertiesPanel({ item, type, onSave, characters, labels
   const isCharacter = item?.file_type === "character" || item?._data?.file_type === "character";
   const fileType = item?.file_type || item?._data?.file_type || "text";
   const isTextType = type === "folder" || fileType === "text";
+  const readOnly = !onSave;
 
   return (
     <div className="props-panel">
       <h3 className="props-heading">{label}</h3>
       <div className="props-field">
         <label className="props-label" htmlFor="prop-title">{t("properties.title")}</label>
-        <input id="prop-title" className="props-input" value={form.title} onChange={(e) => handleChange("title", e.target.value)} />
+        <input id="prop-title" className="props-input" value={form.title} onChange={(e) => handleChange("title", e.target.value)} disabled={readOnly} />
       </div>
       <div className="props-field">
         <label className="props-label" htmlFor="prop-desc">{t("properties.description")}</label>
-        <textarea id="prop-desc" className="props-textarea" value={form.description} onChange={(e) => handleChange("description", e.target.value)} />
+        <textarea id="prop-desc" className="props-textarea" value={form.description} onChange={(e) => handleChange("description", e.target.value)} disabled={readOnly} />
       </div>
       <div className="props-field">
         <label className="props-label" htmlFor="prop-notes">{t("properties.notes")}</label>
-        <textarea id="prop-notes" className="props-textarea" value={form.notes} onChange={(e) => handleChange("notes", e.target.value)} />
+        <textarea id="prop-notes" className="props-textarea" value={form.notes} onChange={(e) => handleChange("notes", e.target.value)} disabled={readOnly} />
       </div>
       <div className="props-field">
         <label className="props-label" htmlFor="prop-tags">{t("properties.tags")}</label>
-        <input id="prop-tags" className="props-input" value={form.tags} onChange={(e) => handleChange("tags", e.target.value)} />
+        <input id="prop-tags" className="props-input" value={form.tags} onChange={(e) => handleChange("tags", e.target.value)} disabled={readOnly} />
       </div>
       {isTextType && (
         <div className="props-field">
           <label className="props-label" htmlFor="prop-wc">{t("properties.target_word_count")}</label>
-          <input id="prop-wc" type="number" min="0" className="props-input" value={form.target_word_count} onChange={(e) => handleChange("target_word_count", e.target.value)} />
+          <input id="prop-wc" type="number" min="0" className="props-input" value={form.target_word_count} onChange={(e) => handleChange("target_word_count", e.target.value)} disabled={readOnly} />
         </div>
       )}
 
@@ -103,7 +111,7 @@ export default function PropertiesPanel({ item, type, onSave, characters, labels
       {isTextType && (
         <div className="props-field">
           <label className="props-label" htmlFor="prop-pov">{t("properties.pov")}</label>
-          <select id="prop-pov" className="props-input" value={form.pov_character} onChange={(e) => handleChange("pov_character", e.target.value)}>
+          <select id="prop-pov" className="props-input" value={form.pov_character} onChange={(e) => handleChange("pov_character", e.target.value)} disabled={readOnly}>
             <option value="">{t("properties.none_option")}</option>
             {(characters || []).map((c) => (
               <option key={c.id} value={c.id}>
@@ -118,7 +126,7 @@ export default function PropertiesPanel({ item, type, onSave, characters, labels
       {isTextType && (
         <div className="props-field">
           <label className="props-label" htmlFor="prop-label">{t("properties.label")}</label>
-          <select id="prop-label" className="props-input" value={form.label} onChange={(e) => handleChange("label", e.target.value)}>
+          <select id="prop-label" className="props-input" value={form.label} onChange={(e) => handleChange("label", e.target.value)} disabled={readOnly}>
             <option value="">{t("properties.none_option")}</option>
             {(labels || []).map((l) => (
               <option key={l.id} value={l.id}>
@@ -133,7 +141,7 @@ export default function PropertiesPanel({ item, type, onSave, characters, labels
       {isTextType && (
         <div className="props-field">
           <label className="props-label" htmlFor="prop-status">{t("properties.status")}</label>
-          <select id="prop-status" className="props-input" value={form.status} onChange={(e) => handleChange("status", e.target.value)}>
+          <select id="prop-status" className="props-input" value={form.status} onChange={(e) => handleChange("status", e.target.value)} disabled={readOnly}>
             <option value="">{t("properties.none_option")}</option>
             {(statuses || []).map((s) => (
               <option key={s.id} value={s.id}>
@@ -148,16 +156,18 @@ export default function PropertiesPanel({ item, type, onSave, characters, labels
       {isCharacter && (
         <div className="props-field">
           <label className="props-label" htmlFor="prop-colour">{t("properties.colour")}</label>
-          <input id="prop-colour" type="color" className="props-input props-colour-input" value={form.colour || "#000000"} onChange={(e) => handleChange("colour", e.target.value)} />
+          <input id="prop-colour" type="color" className="props-input props-colour-input" value={form.colour || "#000000"} onChange={(e) => handleChange("colour", e.target.value)} disabled={readOnly} />
         </div>
       )}
 
-      <button type="button" disabled={!dirty || saving} onClick={handleSave}
-        className={`props-save-btn ${dirty ? "props-save-btn--active" : "props-save-btn--inactive"}`}>
-        {saving ? t("properties.saving") : t("properties.update")}
-      </button>
-      {error && <div className="props-error">{error}</div>}
-      {!dirty && !error && <div className="props-status">{t("properties.all_saved")}</div>}
+      {!readOnly && (
+        <button type="button" disabled={!dirty || saving} onClick={handleSave}
+          className={`props-save-btn ${dirty ? "props-save-btn--active" : "props-save-btn--inactive"}`}>
+          {saving ? t("properties.saving") : t("properties.update")}
+        </button>
+      )}
+      {!readOnly && error && <div className="props-error">{error}</div>}
+      {!readOnly && !dirty && !error && <div className="props-status">{t("properties.all_saved")}</div>}
     </div>
   );
 }

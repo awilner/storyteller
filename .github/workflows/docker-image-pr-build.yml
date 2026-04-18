@@ -78,7 +78,7 @@ jobs:
             build:
               - 'frontend/**'
               - '.github/workflows/**'
-              - 'docker/frontend.Dockerfile'
+              - 'frontend/Dockerfile'
             docs:
               - 'README.md'
               - '.gitignore'
@@ -135,7 +135,8 @@ jobs:
         id: build
         uses: docker/build-push-action@v7
         with:
-          file: ./docker/frontend.Dockerfile 
+          context: ./frontend
+          file: ./frontend/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
@@ -169,7 +170,7 @@ jobs:
           filters: |
             build:
               - 'backend/**'
-              - 'docker/backend.Dockerfile'
+              - 'backend/Dockerfile'
               - 'compose.yml'
               - '.github/workflows/**'
             docs:
@@ -228,7 +229,101 @@ jobs:
         id: build
         uses: docker/build-push-action@v6
         with:
-          file: ./docker/backend.Dockerfile 
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: false
+
+  build-hocuspocus:
+    runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Determine changed paths
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            build:
+              - 'hocuspocus/**'
+              - '.github/workflows/**'
+              - 'hocuspocus/Dockerfile'
+            docs:
+              - 'README.md'
+              - '.gitignore'
+              - '.gitattributes'
+              - '.dockerignore'
+              - 'LICENSE'
+
+      # Note: static YAML linters may report errors about accessing
+      # `steps.changes.outputs.build` or `env.BUILD_CHANGED`. These are
+      # false positives because the value is provided at runtime by
+      # `dorny/paths-filter`. GitHub Actions supports these expressions
+      # and the workflow will evaluate them correctly during execution.
+      - name: Export build flag
+        run: |
+          echo "BUILD_CHANGED=${{ steps.changes.outputs['build'] }}" >> $GITHUB_ENV
+
+      - name: Skip build (only docs/images changed)
+        if: ${{ env.BUILD_CHANGED == 'false' }}
+        run: echo "No build-relevant changes detected — skipping Docker build."
+
+      - name: Set up Docker Buildx
+        if: ${{ env.BUILD_CHANGED == 'true' }}
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up QEMU
+        if: ${{ env.BUILD_CHANGED == 'true' }}
+        uses: docker/setup-qemu-action@v3
+
+      - name: Extract metadata (tags, labels) for Docker
+        if: ${{ env.BUILD_CHANGED == 'true' }}
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/awilner/storyteller/hocuspocus
+          tags: |
+            # Add a tag based on the commit SHA
+            type=sha,prefix=
+
+      - name: Extract platform name
+        id: platform
+        run: echo "name=${PLATFORM//\//-}" >> $GITHUB_OUTPUT
+        env:
+          PLATFORM: ${{ matrix.platform }}
+      
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+      
+      - name: Build the Docker image
+        if: ${{ env.BUILD_CHANGED == 'true' }}
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: ./hocuspocus
+          file: ./hocuspocus/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}

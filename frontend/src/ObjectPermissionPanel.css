@@ -1,0 +1,90 @@
+.objperm-panel {
+  padding: 12px;
+  font-family: system-ui;
+  font-size: 13px;
+  border-top: 1px solid #eee;
+}
+
+.objperm-heading {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0 0 10px;
+}
+
+.objperm-loading {
+  color: #888;
+  font-size: 12px;
+}
+
+.objperm-error {
+  color: #c44;
+  font-size: 12px;
+  margin-bottom: 8px;
+  padding: 4px 6px;
+  background: #fef0f0;
+  border-radius: 4px;
+}
+
+.objperm-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.objperm-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.objperm-item:last-child {
+  border-bottom: none;
+}
+
+.objperm-item-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.objperm-username {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.objperm-effective {
+  font-size: 11px;
+  color: #555;
+}
+
+.objperm-effective--overridden {
+  text-decoration: line-through;
+  color: #999;
+}
+
+.objperm-effective--actual {
+  font-weight: 600;
+  color: #333;
+}
+
+.objperm-ancestor-note {
+  font-size: 10px;
+  color: #888;
+  font-style: italic;
+}
+
+.objperm-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.objperm-select {
+  padding: 2px 4px;
+  font-size: 11px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+}

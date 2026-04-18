@@ -60,6 +60,7 @@ def _get_ui_strings():
         "editor.folder_empty": _("This folder has no texts."),
         "editor.draft_cache_warning": _("Draft cache unavailable — edits are only stored locally until you save."),
         "editor.dismiss_warning": _("Dismiss warning"),
+        "editor.sync_offline": _("Real-time collaboration is offline"),
         "editor.save_failed": _("Save failed: %(error)s"),
         "editor.words": _("words"),
         "editor.characters": _("characters"),
@@ -259,6 +260,7 @@ def _get_ui_strings():
 
         # Tree display settings
         "settings.general_tab": _("General"),
+        "settings.sharing_tab": _("Sharing"),
         "settings.project_tree_section": _("Project tree"),
         "settings.layouts_tab": _("Layouts"),
         "settings.tree_icon_bg": _("Icon background"),
@@ -305,6 +307,17 @@ def _get_ui_strings():
         "settings.day_cutover": _("Day starts at"),
         "settings.day_cutover_hint": _("When your daily word count resets. Useful if you write past midnight."),
         "progress.manuscript_tz_note": _("Manuscript progress uses the project owner's timezone"),
+
+        # Contribution ranking
+        "progress.contribution_ranking": _("Contribution Ranking"),
+        "progress.ranking_visibility": _("Ranking visibility"),
+        "progress.ranking_visibility_owner": _("Owner only"),
+        "progress.ranking_visibility_coauthors": _("Owner and co-authors"),
+        "progress.ranking_visibility_all": _("All collaborators"),
+
+        # Sharing notifications
+        "sharing.downgraded_to_read_only": _("Your role has been changed to read-only. Editing is now disabled."),
+        "sharing.access_revoked_message": _("Your access to this project has been revoked."),
     }
 
 

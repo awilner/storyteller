@@ -53,6 +53,25 @@
 }
 .topbar-project-btn:hover { background: #f0f0f0; }
 
+.topbar-role-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+.topbar-role-tag--read-only {
+  background: #e8f0fe;
+  color: #3367d6;
+}
+
+.topbar-role-tag--co-author {
+  background: #e6f4ea;
+  color: #1e8e3e;
+}
+
 .topbar-spacer { flex: 1; }
 
 .topbar-hamburger {

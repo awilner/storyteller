@@ -17,6 +17,7 @@ import "./MetadataListManager.css";
 export default function MetadataListManager({
   projectId, embedded, onClose, title, addLabel, defaultName,
   deleteWarningKey, fetchItems, createItem, updateItem, deleteItem, t,
+  readOnly,
 }) {
   const [items, setItems] = useState([]);
   const [error, setError] = useState(null);
@@ -100,22 +101,26 @@ export default function MetadataListManager({
         {items.map((item, i) => (
           <div key={item.id} data-row-index={i}
             className={`mdlist-row${dragging === i ? " mdlist-row--dragging" : ""}${insertBefore === i && dragging !== null && dragging !== i ? " mdlist-row--insert-before" : ""}`}>
-            <span className="mdlist-grip" onPointerDown={(e) => handleGripDown(e, i)}>⠿</span>
+            {!readOnly && <span className="mdlist-grip" onPointerDown={(e) => handleGripDown(e, i)}>⠿</span>}
             <input type="color" className="mdlist-colour" value={item.colour || "#000000"}
+              disabled={readOnly}
               onChange={(e) => setItems((prev) => prev.map((x) => x.id === item.id ? { ...x, colour: e.target.value } : x))}
               onBlur={(e) => handleUpdate(item.id, { colour: e.target.value })} />
             <input className="mdlist-name" value={item.name}
+              disabled={readOnly}
               onChange={(e) => setItems((prev) => prev.map((x) => x.id === item.id ? { ...x, name: e.target.value } : x))}
               onBlur={(e) => handleUpdate(item.id, { name: e.target.value })} />
-            <button type="button" className="mdlist-btn mdlist-btn--danger" onClick={() => handleDelete(item.id, item.name)} aria-label="Delete">✕</button>
+            {!readOnly && <button type="button" className="mdlist-btn mdlist-btn--danger" onClick={() => handleDelete(item.id, item.name)} aria-label="Delete">✕</button>}
           </div>
         ))}
         {dragging !== null && insertBefore === items.length && <div className="mdlist-insert-line" />}
       </div>
       {error && <div className="mdlist-error">{error}</div>}
-      <div style={{ paddingTop: 8 }}>
-        <button type="button" className="mdlist-btn" onClick={handleAdd}>{addLabel}</button>
-      </div>
+      {!readOnly && (
+        <div style={{ paddingTop: 8 }}>
+          <button type="button" className="mdlist-btn" onClick={handleAdd}>{addLabel}</button>
+        </div>
+      )}
     </>
   );
 

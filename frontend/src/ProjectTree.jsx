@@ -335,7 +335,7 @@ function Node({ node, style, dragHandle }) {
 
 /* ── Main component ────────────────────────────────────────── */
 
-export default function ProjectTree({ tree, onSelectFile, activeFileId, selectedFolderId, onSelectFolder, onAddFolder, onDeleteFolder, onAddText, onDeleteText, onReorder, onRenameFolder, onRenameText, onChangeFolderIcon, onChangeTextIcon, onEmptyTrash, onDuplicateFolder, onDuplicateText, onCopyToProject, otherProjects, labels, statuses, characters, treeSettings, isMobile }) {
+export default function ProjectTree({ tree, onSelectFile, activeFileId, selectedFolderId, onSelectFolder, onAddFolder, onDeleteFolder, onAddText, onDeleteText, onReorder, onRenameFolder, onRenameText, onChangeFolderIcon, onChangeTextIcon, onEmptyTrash, onDuplicateFolder, onDuplicateText, onCopyToProject, otherProjects, labels, statuses, characters, treeSettings, isMobile, role, overrides }) {
   const t = useI18n();
   const [menu, setMenu] = useState(null);
   const [iconPicker, setIconPicker] = useState(null);
@@ -343,7 +343,35 @@ export default function ProjectTree({ tree, onSelectFile, activeFileId, selected
   const containerRef = useRef(null);
   const [treeHeight, setTreeHeight] = useState(600);
 
-  // Persist tree open/closed state per project
+  /**
+   * Check if a tree node is read-only due to per-object overrides.
+   * Returns true if the node or any of its ancestor folders has a
+   * "read-only" or "none" override for the current co-author.
+   * Owners are never restricted. Only applies to co-authors.
+   */
+  const isNodeRestricted = useCallback((node) => {
+    if (!overrides || !overrides.length || role !== "co-author") return false;
+    // Check the node itself
+    const d = node.data;
+    const targetKey = d._type === "text" ? "target_file" : "target_folder";
+    const directMatch = overrides.find((o) => o[targetKey] === d._dbId);
+    if (directMatch && (directMatch.permission === "read-only" || directMatch.permission === "none")) {
+      return true;
+    }
+    // Walk up ancestor folders
+    let current = node.parent;
+    while (current && !current.isRoot) {
+      const folderId = current.data?._dbId;
+      if (folderId) {
+        const match = overrides.find((o) => o.target_folder === folderId);
+        if (match && (match.permission === "read-only" || match.permission === "none")) {
+          return true;
+        }
+      }
+      current = current.parent;
+    }
+    return false;
+  }, [overrides, role]);  // Persist tree open/closed state per project
   const projectId = tree?.id;
   const storageKey = projectId ? `storyteller-tree-open-${projectId}` : null;
 
@@ -436,12 +464,20 @@ export default function ProjectTree({ tree, onSelectFile, activeFileId, selected
     }
     // Can't drop into a text item
     if (parentNode.data?._type === "text") return true;
+    // Can't drop into a folder restricted by per-object overrides
+    if (isNodeRestricted(parentNode)) return true;
     return false;
-  }, []);
+  }, [isNodeRestricted]);
 
   const disableDrag = useCallback((node) => {
-    return node._isTrash === true;
-  }, []);
+    if (node._isTrash === true) return true;
+    // Prevent dragging nodes restricted by per-object overrides
+    if (treeRef.current) {
+      const arboristNode = treeRef.current.get(node.id);
+      if (arboristNode && isNodeRestricted(arboristNode)) return true;
+    }
+    return false;
+  }, [isNodeRestricted]);
 
   // Shared menu builder — used by both right-click and mobile three-dot
   const buildMenuItems = useCallback((node, x, y) => {
@@ -450,6 +486,8 @@ export default function ProjectTree({ tree, onSelectFile, activeFileId, selected
       if (onAddFolder) items.push({ label: t("tree.new_folder"), action: () => onAddFolder(null) });
       return items;
     }
+    // Suppress all write actions for nodes restricted by per-object overrides
+    if (isNodeRestricted(node)) return items;
     const d = node.data;
     if (d._type === "folder") {
       if (d._isTrash) {
@@ -488,7 +526,7 @@ export default function ProjectTree({ tree, onSelectFile, activeFileId, selected
       }
     }
     return items;
-  }, [t, onAddText, onAddFolder, onDeleteFolder, onDeleteText, onChangeFolderIcon, onChangeTextIcon, onEmptyTrash, onDuplicateFolder, onDuplicateText, onCopyToProject]);
+  }, [t, onAddText, onAddFolder, onDeleteFolder, onDeleteText, onChangeFolderIcon, onChangeTextIcon, onEmptyTrash, onDuplicateFolder, onDuplicateText, onCopyToProject, isNodeRestricted]);
 
   const handleContextMenu = useCallback((e) => {
     e.preventDefault();

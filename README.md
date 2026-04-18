@@ -18,6 +18,11 @@ I created this after looking for a self-hosted version of apps like Scrivener or
 
 - Hierarchical project tree with drag-and-drop reordering
 - Rich text editor (TipTap/ProseMirror) with markdown storage
+- Real-time collaborative editing via Yjs CRDTs and HocusPocus
+- Project sharing with role-based access (co-author, read-only)
+- Per-object permission overrides for fine-grained access control
+- Per-user progress tracking with daily and session word count targets
+- Contribution ranking showing each collaborator's total word contributions
 - Characters, locations, items, and notes alongside your manuscript
 - POV character, label, and status metadata per folder/text
 - Configurable colour coding in the project tree
@@ -37,17 +42,47 @@ I created this after looking for a self-hosted version of apps like Scrivener or
 ## Architecture
 
 ```
-┌──────────┐     ┌──────────┐     ┌──────────┐
-│ Frontend │────▶│ Backend  │────▶│ MariaDB  │
-│  nginx   │:80  │ gunicorn │:8000│          │:3306
-│          │     │  Pandoc  │────▶│  Redis   │:6379
-└──────────┘     └──────────┘     └──────────┘
+┌──────────┐     ┌──────────────┐     ┌──────────┐
+│ Frontend │────▶│   Backend    │────▶│ MariaDB  │
+│  nginx   │:80  │ Daphne/ASGI  │:8000│          │:3306
+│          │     │   Pandoc     │     │          │
+│          │     └──────────────┘     └──────────┘
+│          │            │
+│          │     ┌──────────────┐     ┌──────────┐
+│          │────▶│ HocusPocus   │────▶│  Redis   │:6379
+│          │     │  Yjs server  │:1234│          │
+└──────────┘     └──────────────┘     └──────────┘
 ```
 
-- Frontend: React SPA served by nginx, proxies `/api/` to the backend
-- Backend: Django + Django REST Framework with Pandoc for document compilation
-- MariaDB: persistent storage for projects, folders, files, metadata
-- Redis: draft caching layer - caches changes every 2s, keeps them for 24h maximum (if autosave is enabled, cached changes are persisted to the DB at regular intervals)
+- **Frontend**: React SPA served by nginx, proxies `/api/` to the backend, `/ws/` to Django Channels, `/yjs/` to HocusPocus
+- **Backend**: Django + Django REST Framework + Django Channels (ASGI via Daphne), with Pandoc for document compilation
+- **HocusPocus**: Node.js Yjs WebSocket server for real-time collaborative editing, authenticates via callback to the Django backend
+- **MariaDB**: persistent storage for projects, folders, files, metadata
+- **Redis**: Django Channels channel layer, HocusPocus document sync, and draft caching
+
+## Real-Time Synchronization
+
+Storyteller uses two complementary real-time channels:
+
+### Document Editing (HocusPocus / Yjs)
+
+Text content is synchronized via Yjs CRDTs through the HocusPocus WebSocket server. When two users edit the same file, changes merge automatically with no conflicts. Cursors and selections are shared in real time.
+
+### Project Events (Django Channels)
+
+All other collaborative state — the project tree, settings, labels, statuses, and permissions — is synchronized through a Django Channels WebSocket at `/ws/projects/<id>/`. When any user makes a change, the backend broadcasts an event to all connected clients, which then refresh the affected data.
+
+| Event | Triggered by |
+|---|---|
+| `tree_changed` | Create, update, delete, reorder, duplicate folders/files; empty trash; copy to project |
+| `settings_changed` | Update project title, description, or settings |
+| `labels_changed` | Create, update, or delete a label |
+| `statuses_changed` | Create, update, or delete a status |
+| `layouts_changed` | Create, update, or delete a compile layout |
+| `permission_changed` | Create, update, or delete a share or per-object override |
+| `access_revoked` | Remove a collaborator's access (closes their connection) |
+
+The broadcast system is extensible — adding a new event type requires only a one-line `broadcast_project_event()` call in the backend view and an optional handler in the frontend. See the [backend README](backend/README.md) for details.
 
 ## Deployment with Docker
 
@@ -73,6 +108,7 @@ Edit `.env` and set real values for at least:
 - `DJANGO_SECRET_KEY` — a long random string
 - `DB_PASSWORD` and `MARIADB_ROOT_PASSWORD` — database credentials
 - `CORS_ALLOWED_ORIGINS` and `CSRF_TRUSTED_ORIGINS` — your domain (e.g. `https://my.domain.com`)
+- `HOCUSPOCUS_SECRET` — a shared secret between HocusPocus and the backend
 - `COOKIE_SECURE=True` — when serving over HTTPS
 
 See [`docker/.env.example`](docker/.env.example) for all available options.
@@ -104,7 +140,26 @@ See the individual READMEs for development setup:
 
 - [Backend](backend/README.md) — Django API, Python 3.10+
 - [Frontend](frontend/README.md) — React SPA, Node.js 18+
+- [HocusPocus](hocuspocus/README.md) — Collaborative editing server, Node.js 18+
 - [Docker](docker/README.md) — Building images locally
+
+### Quick Start (all services)
+
+```bash
+# Terminal 1 — Backend
+cd backend && python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt && python manage.py migrate
+python manage.py runserver
+
+# Terminal 2 — HocusPocus (Redis optional for local dev)
+cd hocuspocus && npm install
+HOCUSPOCUS_AUTH_URL=http://127.0.0.1:8000/api/internal/yjs-auth/ npm start
+
+# Terminal 3 — Frontend
+cd frontend && npm install && npm run dev
+```
+
+Open `http://localhost:5173`.
 
 ## Screenshots
 <img width="45%" alt="Project list" src="img/project_list.png" />

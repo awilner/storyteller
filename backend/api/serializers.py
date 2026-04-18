@@ -2,7 +2,11 @@ from django.contrib.auth.models import User
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
-from .models import CompileLayout, DailyWordCount, FileVersion, Folder, Label, ManuscriptWordCount, Project, ProjectFile, SessionWordCount, Status
+from .models import (
+    CompileLayout, DailyWordCount, FileVersion, Folder, Label,
+    ManuscriptWordCount, ObjectPermissionOverride, Project, ProjectFile,
+    ProjectShare, SessionWordCount, Status, UserProgressSettings,
+)
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -224,6 +228,12 @@ class SessionWordCountSerializer(serializers.ModelSerializer):
         return self._to_utc_iso(obj.ended_at)
 
 
+class UserProgressSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserProgressSettings
+        fields = ["daily_target", "session_target"]
+
+
 class CompileRequestSerializer(serializers.Serializer):
     format = serializers.ChoiceField(
         choices=["docx", "rtf", "markdown", "pdf", "latex", "epub", "mobi"],
@@ -232,3 +242,46 @@ class CompileRequestSerializer(serializers.Serializer):
     root_folder_id = serializers.IntegerField()
     front_matter_folder_id = serializers.IntegerField(required=False, allow_null=True)
     back_matter_folder_id = serializers.IntegerField(required=False, allow_null=True)
+
+
+class ProjectShareSerializer(serializers.ModelSerializer):
+    """Serializer for ProjectShare records (adding/listing collaborators)."""
+
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    username = serializers.CharField(source="user.username", read_only=True)
+
+    class Meta:
+        model = ProjectShare
+        fields = ["id", "project", "user", "username", "role", "created_at"]
+        read_only_fields = ["id", "project", "created_at"]
+
+
+class ObjectPermissionOverrideSerializer(serializers.ModelSerializer):
+    """Serializer for per-object permission overrides."""
+
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    target_folder = serializers.PrimaryKeyRelatedField(
+        queryset=Folder.objects.all(), required=False, allow_null=True, default=None,
+    )
+    target_file = serializers.PrimaryKeyRelatedField(
+        queryset=ProjectFile.objects.all(), required=False, allow_null=True, default=None,
+    )
+    permission = serializers.ChoiceField(
+        choices=ObjectPermissionOverride.Permission.choices,
+    )
+
+    class Meta:
+        model = ObjectPermissionOverride
+        fields = [
+            "id", "user", "target_folder", "target_file",
+            "permission", "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+
+class UserSearchSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for the search-users endpoint."""
+
+    class Meta:
+        model = User
+        fields = ["id", "username"]

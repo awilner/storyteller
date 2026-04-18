@@ -13,6 +13,7 @@ DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() == "true"
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split(",")
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -21,6 +22,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "corsheaders",
+    "channels",
     "api",
 ]
 
@@ -55,6 +57,21 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "config.wsgi.application"
+ASGI_APPLICATION = "config.asgi.application"
+
+# Channel Layers — uses InMemoryChannelLayer for development/testing.
+# For production, switch to channels_redis.core.RedisChannelLayer:
+#   CHANNEL_LAYERS = {
+#       "default": {
+#           "BACKEND": "channels_redis.core.RedisChannelLayer",
+#           "CONFIG": {"hosts": [("127.0.0.1", 6379)]},
+#       },
+#   }
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}
 
 # Database — set DB_ENGINE to "mariadb" or "sqlite" (default: sqlite)
 # SQLite:  DB_PATH (defaults to db.sqlite3 in project root)
@@ -98,15 +115,31 @@ LANGUAGES = [
     ("pt", "Português"),
 ]
 
-# CORS - allow all origins, we want to be able to access the API from other applications in the future.
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS
+CORS_ALLOWED_ORIGINS = [
+    o.strip() for o in os.environ.get(
+        "CORS_ALLOWED_ORIGINS", "http://localhost:5173"
+    ).split(",") if o.strip()
+]
+CORS_ALLOW_CREDENTIALS = True
 
-CSRF_TRUSTED_ORIGINS = os.environ.get(
-    "CSRF_TRUSTED_ORIGINS", "http://localhost:5173"
-).split(",")
+# CSRF
+CSRF_TRUSTED_ORIGINS = [
+    o.strip() for o in os.environ.get(
+        "CSRF_TRUSTED_ORIGINS", "http://localhost:5173"
+    ).split(",") if o.strip()
+]
 
 # Trust X-Forwarded-Proto from reverse proxies (nginx, Traefik, etc.)
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# Cookie settings for HTTPS behind a reverse proxy.
+# Set COOKIE_SECURE=True in production with HTTPS.
+_cookie_secure = os.environ.get("COOKIE_SECURE", "False").lower() == "true"
+CSRF_COOKIE_SECURE = _cookie_secure
+SESSION_COOKIE_SECURE = _cookie_secure
+CSRF_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SAMESITE = "Lax"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -176,6 +209,10 @@ LOGGING = {
             "level": _LOG_LEVEL,
             "propagate": False,
         },
+        "daphne": {
+            "handlers": ["console"],
+            "level": _LOG_LEVEL,
+            "propagate": False,
+        },
     },
 }
-

@@ -392,6 +392,43 @@ function SessionBarChart({ sessions, sessionTarget, t }) {
 }
 
 
+function ContributionRanking({ ranking, t }) {
+  return (
+    <div className="progress-section contribution-ranking">
+      <h3>{t("progress.contribution_ranking")}</h3>
+      <ol className="contribution-ranking-list">
+        {ranking.map((entry, index) => (
+          <li key={entry.user_id} className="contribution-ranking-item">
+            <span className="contribution-ranking-position">{index + 1}</span>
+            <span className="contribution-ranking-username">{entry.username}</span>
+            <span className="contribution-ranking-words">
+              {entry.total_word_count.toLocaleString()} {t("progress.words_label")}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+
+/**
+ * Derive the user's role from the progress API response data.
+ * - Owner: response contains ranking visibility toggle fields
+ * - Co-author: response contains daily_target (but not ranking toggles)
+ * - Read-only: response does NOT contain daily_target
+ */
+function deriveRole(responseData) {
+  if (!responseData) return "read-only";
+  if ("ranking_visibility" in responseData) {
+    return "owner";
+  }
+  if ("daily_target" in responseData) {
+    return "co-author";
+  }
+  return "read-only";
+}
+
 export default function ProgressPage({ projectId, onClose, onDataLoaded, initialData }) {
   const t = useI18n();
   const [data, setData] = useState(initialData || null);
@@ -410,7 +447,13 @@ export default function ProgressPage({ projectId, onClose, onDataLoaded, initial
   const [dayCutover, setDayCutover] = useState(() =>
     initialData?.day_cutover_hour != null ? initialData.day_cutover_hour : 0
   );
+  const [rankingVisibility, setRankingVisibility] = useState(() =>
+    initialData?.ranking_visibility ?? "owner"
+  );
   const [saving, setSaving] = useState(false);
+
+  const role = deriveRole(data);
+  const isReadOnly = role === "read-only";
 
   const load = useCallback(async () => {
     try {
@@ -423,6 +466,7 @@ export default function ProgressPage({ projectId, onClose, onDataLoaded, initial
       setDailyTarget(d.daily_target != null ? String(d.daily_target) : "");
       setSessionTarget(d.session_target != null ? String(d.session_target) : "");
       if (d.day_cutover_hour != null) setDayCutover(d.day_cutover_hour);
+      if ("ranking_visibility" in d) setRankingVisibility(d.ranking_visibility);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -441,6 +485,9 @@ export default function ProgressPage({ projectId, onClose, onDataLoaded, initial
         daily_target: dailyTarget ? Number(dailyTarget) : null,
         session_target: sessionTarget ? Number(sessionTarget) : null,
       };
+      if (role === "owner") {
+        payload.ranking_visibility = rankingVisibility;
+      }
       await updateProgress(projectId, payload);
       // Save cutover to user settings
       await updateUserSettings({ day_cutover_hour: dayCutover });
@@ -473,54 +520,56 @@ export default function ProgressPage({ projectId, onClose, onDataLoaded, initial
 
       {error && <p className="progress-error">{error}</p>}
 
-      <div className="progress-targets-form">
-        <div className="progress-field">
-          <label>{t("progress.manuscript_target")}</label>
-          <input type="number" min="1" value={manuscriptTarget} onChange={(e) => setManuscriptTarget(e.target.value)} />
+      {!isReadOnly && (
+        <div className="progress-targets-form">
+          <div className="progress-field">
+            <label>{t("progress.manuscript_target")}</label>
+            <input type="number" min="1" value={manuscriptTarget} onChange={(e) => setManuscriptTarget(e.target.value)} />
+          </div>
+          <div className="progress-field">
+            <label>{t("progress.daily_target")}</label>
+            <input type="number" min="1" value={dailyTarget} onChange={(e) => setDailyTarget(e.target.value)} />
+          </div>
+          <div className="progress-field">
+            <label>{t("settings.day_cutover")}</label>
+            <select value={dayCutover} onChange={(e) => setDayCutover(Number(e.target.value))}>
+              <option value={-12}>Noon</option>
+              <option value={-11}>1 PM</option>
+              <option value={-10}>2 PM</option>
+              <option value={-9}>3 PM</option>
+              <option value={-8}>4 PM</option>
+              <option value={-7}>5 PM</option>
+              <option value={-6}>6 PM</option>
+              <option value={-5}>7 PM</option>
+              <option value={-4}>8 PM</option>
+              <option value={-3}>9 PM</option>
+              <option value={-2}>10 PM</option>
+              <option value={-1}>11 PM</option>
+              <option value={0}>Midnight</option>
+              <option value={1}>1 AM Next Day</option>
+              <option value={2}>2 AM Next Day</option>
+              <option value={3}>3 AM Next Day</option>
+              <option value={4}>4 AM Next Day</option>
+              <option value={5}>5 AM Next Day</option>
+              <option value={6}>6 AM Next Day</option>
+              <option value={7}>7 AM Next Day</option>
+              <option value={8}>8 AM Next Day</option>
+              <option value={9}>9 AM Next Day</option>
+              <option value={10}>10 AM Next Day</option>
+              <option value={11}>11 AM Next Day</option>
+              <option value={12}>Noon Next Day</option>
+            </select>
+            <span className="muted-text" style={{ fontSize: "0.85em" }}>{t("settings.day_cutover_hint")}</span>
+          </div>
+          <div className="progress-field">
+            <label>{t("progress.session_target")}</label>
+            <input type="number" min="1" value={sessionTarget} onChange={(e) => setSessionTarget(e.target.value)} />
+          </div>
+          <button type="button" className="progress-save-btn" onClick={handleSave} disabled={saving}>
+            {saving ? t("editor.saving") : t("progress.save_targets")}
+          </button>
         </div>
-        <div className="progress-field">
-          <label>{t("progress.daily_target")}</label>
-          <input type="number" min="1" value={dailyTarget} onChange={(e) => setDailyTarget(e.target.value)} />
-        </div>
-        <div className="progress-field">
-          <label>{t("settings.day_cutover")}</label>
-          <select value={dayCutover} onChange={(e) => setDayCutover(Number(e.target.value))}>
-            <option value={-12}>Noon</option>
-            <option value={-11}>1 PM</option>
-            <option value={-10}>2 PM</option>
-            <option value={-9}>3 PM</option>
-            <option value={-8}>4 PM</option>
-            <option value={-7}>5 PM</option>
-            <option value={-6}>6 PM</option>
-            <option value={-5}>7 PM</option>
-            <option value={-4}>8 PM</option>
-            <option value={-3}>9 PM</option>
-            <option value={-2}>10 PM</option>
-            <option value={-1}>11 PM</option>
-            <option value={0}>Midnight</option>
-            <option value={1}>1 AM Next Day</option>
-            <option value={2}>2 AM Next Day</option>
-            <option value={3}>3 AM Next Day</option>
-            <option value={4}>4 AM Next Day</option>
-            <option value={5}>5 AM Next Day</option>
-            <option value={6}>6 AM Next Day</option>
-            <option value={7}>7 AM Next Day</option>
-            <option value={8}>8 AM Next Day</option>
-            <option value={9}>9 AM Next Day</option>
-            <option value={10}>10 AM Next Day</option>
-            <option value={11}>11 AM Next Day</option>
-            <option value={12}>Noon Next Day</option>
-          </select>
-          <span className="muted-text" style={{ fontSize: "0.85em" }}>{t("settings.day_cutover_hint")}</span>
-        </div>
-        <div className="progress-field">
-          <label>{t("progress.session_target")}</label>
-          <input type="number" min="1" value={sessionTarget} onChange={(e) => setSessionTarget(e.target.value)} />
-        </div>
-        <button type="button" className="progress-save-btn" onClick={handleSave} disabled={saving}>
-          {saving ? t("editor.saving") : t("progress.save_targets")}
-        </button>
-      </div>
+      )}
 
       {data && (
         <>
@@ -537,7 +586,7 @@ export default function ProgressPage({ projectId, onClose, onDataLoaded, initial
             </div>
           )}
 
-          {data.daily_target != null && (
+          {!isReadOnly && data.daily_target != null && (
             <div className="progress-section">
               <h3>{t("progress.words_written_today")}</h3>
               <ProgressBar current={data.daily_word_count} target={data.daily_target}
@@ -545,7 +594,7 @@ export default function ProgressPage({ projectId, onClose, onDataLoaded, initial
             </div>
           )}
 
-          {data.session_target != null && (
+          {!isReadOnly && data.session_target != null && (
             <div className="progress-section">
               <h3>{t("progress.session_words")}</h3>
               <ProgressBar current={data.session_word_count} target={data.session_target}
@@ -561,15 +610,43 @@ export default function ProgressPage({ projectId, onClose, onDataLoaded, initial
             <ProgressGraph snapshots={data.snapshots} manuscriptTarget={data.manuscript_target} t={t} />
           </div>
 
-          <div className="progress-graph">
-            <h3>{t("progress.daily_words")}</h3>
-            <DailyBarChart dailyCounts={data.daily_counts} dailyTarget={data.daily_target} t={t} />
-          </div>
+          {!isReadOnly && (
+            <div className="progress-graph">
+              <h3>{t("progress.daily_words")}</h3>
+              <DailyBarChart dailyCounts={data.daily_counts} dailyTarget={data.daily_target} t={t} />
+            </div>
+          )}
 
-          <div className="progress-graph">
-            <h3>{t("progress.session_history")}</h3>
-            <SessionBarChart sessions={data.sessions} sessionTarget={data.session_target} t={t} />
-          </div>
+          {!isReadOnly && (
+            <div className="progress-graph">
+              <h3>{t("progress.session_history")}</h3>
+              <SessionBarChart sessions={data.sessions} sessionTarget={data.session_target} t={t} />
+            </div>
+          )}
+
+          {data.contribution_ranking && data.contribution_ranking.length > 0 && (
+            <ContributionRanking ranking={data.contribution_ranking} t={t} />
+          )}
+
+          {role === "owner" && (
+            <div className="progress-ranking-visibility">
+              <label htmlFor="ranking-visibility">{t("progress.ranking_visibility")}</label>
+              <select
+                id="ranking-visibility"
+                value={rankingVisibility}
+                onChange={(e) => {
+                  setRankingVisibility(e.target.value);
+                  // Auto-save the visibility change
+                  const payload = { ranking_visibility: e.target.value };
+                  updateProgress(projectId, payload).then(load).catch((err) => setError(err.message));
+                }}
+              >
+                <option value="owner">{t("progress.ranking_visibility_owner")}</option>
+                <option value="coauthors">{t("progress.ranking_visibility_coauthors")}</option>
+                <option value="all">{t("progress.ranking_visibility_all")}</option>
+              </select>
+            </div>
+          )}
         </>
       )}
     </div>
